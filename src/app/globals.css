@@ -1,0 +1,32 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  --card: #141414;
+  --card-border: #2a2a2a;
+  --primary: #9945ff;
+  --primary-hover: #7c35d9;
+  --accent: #14f195;
+  --muted: #888;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
+}
+
+/* Solana wallet adapter overrides */
+.wallet-adapter-button {
+  background-color: var(--primary) !important;
+}
+
+.wallet-adapter-modal-wrapper {
+  background-color: var(--card) !important;
+}

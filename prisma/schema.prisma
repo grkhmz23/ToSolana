@@ -1,0 +1,35 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model QuoteSession {
+  id               String   @id @default(cuid())
+  createdAt        DateTime @default(now())
+  sourceAddress    String
+  solanaAddress    String
+  provider         String
+  routeId          String
+  status           String   @default("idle")
+  selectedRouteJson String
+  currentStep      Int      @default(0)
+  errorMessage     String?
+  steps            Step[]
+}
+
+model Step {
+  id           String       @id @default(cuid())
+  sessionId    String
+  index        Int
+  chainType    String
+  status       String       @default("idle")
+  txHashOrSig  String?
+  metaJson     String?
+  session      QuoteSession @relation(fields: [sessionId], references: [id])
+
+  @@unique([sessionId, index])
+}
