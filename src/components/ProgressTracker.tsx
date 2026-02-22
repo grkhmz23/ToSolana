@@ -35,15 +35,28 @@ export function ProgressTracker({ route, sourceAddress, solanaAddress }: Progres
     completed: false,
   });
 
-  // Poll session status
+  // Poll session status with max duration
   const { data: statusData } = useQuery<StatusResponse>({
     queryKey: ["session-status", state.sessionId],
     queryFn: async () => {
       const res = await fetch(`/api/status?sessionId=${state.sessionId}`);
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ error: "Unknown error" }));
+        throw new Error(error.error ?? "Failed to fetch status");
+      }
       return (await res.json()) as StatusResponse;
     },
     enabled: !!state.sessionId,
-    refetchInterval: state.isExecuting ? 3000 : false,
+    refetchInterval: (query) => {
+      // Stop polling if session is completed or failed
+      const data = query.state.data;
+      if (data?.status === "completed" || data?.status === "failed") {
+        return false;
+      }
+      return state.isExecuting ? 3000 : false;
+    },
+    staleTime: 2000,
+    retry: 2,
   });
 
   const createSession = useCallback(async (): Promise<string> => {
@@ -156,8 +169,13 @@ export function ProgressTracker({ route, sourceAddress, solanaAddress }: Progres
           }),
         });
 
-        // Poll for confirmation
-        const confirmation = await connection.confirmTransaction(txHashOrSig, "confirmed");
+        // Poll for confirmation with timeout
+        const confirmation = await Promise.race([
+          connection.confirmTransaction(txHashOrSig, "confirmed"),
+          new Promise<never>((_, reject) => 
+            setTimeout(() => reject(new Error("Solana confirmation timeout")), 60000)
+          ),
+        ]);
         if (confirmation.value.err) {
           throw new Error(`Solana transaction failed: ${JSON.stringify(confirmation.value.err)}`);
         }

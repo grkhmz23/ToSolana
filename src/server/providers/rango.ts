@@ -1,3 +1,4 @@
+import { fetchWithTimeout } from "@/lib/fetch-utils";
 import type { BridgeProvider } from "./index";
 import type { NormalizedRoute, QuoteRequest, TxRequest } from "../schema";
 
@@ -117,7 +118,7 @@ export class RangoProvider implements BridgeProvider {
       toAddress: intent.solanaAddress,
     };
 
-    const res = await fetch(`${RANGO_BASE_URL}/routing/best?apiKey=${getApiKey()}`, {
+    const res = await fetchWithTimeout(`${RANGO_BASE_URL}/routing/best?apiKey=${getApiKey()}`, {
       method: "POST",
       headers: getHeaders(),
       body: JSON.stringify(body),
@@ -125,10 +126,17 @@ export class RangoProvider implements BridgeProvider {
 
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(`Rango API error ${res.status}: ${text}`);
+      // Sanitize error message to avoid leaking sensitive info
+      const sanitized = text.length > 500 ? text.slice(0, 500) + '...' : text;
+      throw new Error(`Rango API error ${res.status}: ${sanitized}`);
     }
 
     const data = (await res.json()) as RangoQuoteResponse;
+
+    // Validate response structure
+    if (!data || typeof data !== 'object') {
+      throw new Error('Invalid response from Rango API');
+    }
 
     if (data.error) {
       throw new Error(`Rango: ${data.error}`);
@@ -182,6 +190,11 @@ export class RangoProvider implements BridgeProvider {
     stepIndex: number,
     intent: QuoteRequest,
   ): Promise<TxRequest> {
+    // Validate stepIndex
+    if (stepIndex < 0 || !Number.isInteger(stepIndex)) {
+      throw new Error(`Invalid step index: ${stepIndex}`);
+    }
+
     const fromBlockchain = evmChainToRango(intent.sourceChainId);
     const isNativeSource =
       intent.sourceTokenAddress === "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" ||
@@ -211,7 +224,7 @@ export class RangoProvider implements BridgeProvider {
       toAddress: intent.solanaAddress,
     };
 
-    const res = await fetch(`${RANGO_BASE_URL}/tx/create?apiKey=${getApiKey()}`, {
+    const res = await fetchWithTimeout(`${RANGO_BASE_URL}/tx/create?apiKey=${getApiKey()}`, {
       method: "POST",
       headers: getHeaders(),
       body: JSON.stringify(body),
@@ -219,7 +232,8 @@ export class RangoProvider implements BridgeProvider {
 
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(`Rango tx create error ${res.status}: ${text}`);
+      const sanitized = text.length > 500 ? text.slice(0, 500) + '...' : text;
+      throw new Error(`Rango tx create error ${res.status}: ${sanitized}`);
     }
 
     const data = (await res.json()) as RangoSwapResponse;

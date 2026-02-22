@@ -130,6 +130,12 @@ export const createSessionRequestSchema = z.object({
 });
 export type CreateSessionRequest = z.infer<typeof createSessionRequestSchema>;
 
+// ---- Status query ----
+
+export const statusQuerySchema = z.object({
+  sessionId: z.string().min(1),
+});
+
 // ---- Update step status ----
 
 export const updateStepRequestSchema = z.object({

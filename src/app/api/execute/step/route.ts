@@ -7,8 +7,40 @@ import {
 import { getProvider } from "@/server/providers";
 import { createSession, getSession, updateStepStatus } from "@/server/sessions";
 
+// Helper to verify origin for CSRF protection
+function verifyOrigin(request: Request): boolean {
+  const origin = request.headers.get("origin");
+  const host = request.headers.get("host");
+  
+  // In development, allow requests without origin
+  if (process.env.NODE_ENV === "development") {
+    return true;
+  }
+  
+  // Require origin header in production
+  if (!origin || !host) {
+    return false;
+  }
+  
+  // Verify origin matches host
+  try {
+    const originUrl = new URL(origin);
+    return originUrl.host === host;
+  } catch {
+    return false;
+  }
+}
+
 export async function POST(request: Request) {
   try {
+    // CSRF protection
+    if (!verifyOrigin(request)) {
+      return NextResponse.json(
+        { error: "Invalid origin" },
+        { status: 403 },
+      );
+    }
+
     const body: unknown = await request.json();
 
     // Check if this is a "create session" request
@@ -54,10 +86,55 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Session not found" }, { status: 404 });
     }
 
-    // Reconstruct intent from session
-    const route = JSON.parse(session.selectedRouteJson) as {
-      steps: { chainType: string; chainId?: number }[];
-    };
+    // Verify session is in a valid state for execution
+    if (session.status === "completed") {
+      return NextResponse.json(
+        { error: "Session already completed" },
+        { status: 400 },
+      );
+    }
+    if (session.status === "failed") {
+      return NextResponse.json(
+        { error: "Session failed, cannot continue" },
+        { status: 400 },
+      );
+    }
+
+    // Verify provider matches stored session
+    if (session.provider !== provider) {
+      return NextResponse.json(
+        { error: "Provider mismatch" },
+        { status: 400 },
+      );
+    }
+
+    // Verify routeId matches stored session
+    if (session.routeId !== routeId) {
+      return NextResponse.json(
+        { error: "Route ID mismatch" },
+        { status: 400 },
+      );
+    }
+
+    // Parse and validate stored route
+    let route: { steps: { chainType: string; chainId?: number }[] };
+    try {
+      route = JSON.parse(session.selectedRouteJson) as typeof route;
+    } catch {
+      return NextResponse.json(
+        { error: "Invalid route data in session" },
+        { status: 500 },
+      );
+    }
+
+    // Validate stepIndex is within bounds
+    if (!Array.isArray(route.steps) || stepIndex >= route.steps.length) {
+      return NextResponse.json(
+        { error: `Step ${stepIndex} not found` },
+        { status: 400 },
+      );
+    }
+
     const step = route.steps[stepIndex];
     if (!step) {
       return NextResponse.json({ error: `Step ${stepIndex} not found` }, { status: 400 });
@@ -67,7 +144,7 @@ export async function POST(request: Request) {
 
     // We need the original intent to pass to the provider
     // Store it in the session or reconstruct from context
-    // For now, we pass a minimal intent
+    // For now, we pass a minimal intent with session data
     const intent = {
       sourceChainId: step.chainId ?? 1,
       sourceTokenAddress: "native",
@@ -89,6 +166,10 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    // Sanitize error message in production
+    const sanitizedMessage = process.env.NODE_ENV === "production" 
+      ? "An error occurred while processing your request" 
+      : message;
+    return NextResponse.json({ error: sanitizedMessage }, { status: 500 });
   }
 }

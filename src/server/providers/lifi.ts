@@ -1,3 +1,4 @@
+import { fetchWithTimeout } from "@/lib/fetch-utils";
 import type { BridgeProvider } from "./index";
 import type { NormalizedRoute, QuoteRequest, TxRequest } from "../schema";
 
@@ -87,7 +88,7 @@ export class LiFiProvider implements BridgeProvider {
   }
 
   async getQuotes(intent: QuoteRequest): Promise<NormalizedRoute[]> {
-    const res = await fetch(`${LIFI_BASE_URL}/advanced/routes`, {
+    const res = await fetchWithTimeout(`${LIFI_BASE_URL}/advanced/routes`, {
       method: "POST",
       headers: getHeaders(),
       body: JSON.stringify({
@@ -104,17 +105,31 @@ export class LiFiProvider implements BridgeProvider {
           integrator: getIntegrator(),
           order: "RECOMMENDED",
           slippage: 0.03,
+          allowBridges: [], // Allow all bridges
+          allowExchanges: [], // Allow all exchanges
         },
       }),
     });
 
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(`LI.FI API error ${res.status}: ${text}`);
+      // Sanitize error message to avoid leaking sensitive info
+      const sanitized = text.length > 500 ? text.slice(0, 500) + '...' : text;
+      throw new Error(`LI.FI API error ${res.status}: ${sanitized}`);
     }
 
     const data = (await res.json()) as LiFiQuoteResponse;
-    if (!data.routes || data.routes.length === 0) {
+    
+    // Validate response structure
+    if (!data || typeof data !== 'object') {
+      throw new Error('Invalid response from LI.FI API');
+    }
+    
+    if (data.message) {
+      throw new Error(`LI.FI: ${data.message}`);
+    }
+    
+    if (!Array.isArray(data.routes) || data.routes.length === 0) {
       return [];
     }
 
@@ -159,8 +174,13 @@ export class LiFiProvider implements BridgeProvider {
     stepIndex: number,
     intent: QuoteRequest,
   ): Promise<TxRequest> {
+    // Validate stepIndex
+    if (stepIndex < 0 || !Number.isInteger(stepIndex)) {
+      throw new Error(`Invalid step index: ${stepIndex}`);
+    }
+
     // LI.FI requires re-fetching the route and getting the step transaction
-    const res = await fetch(`${LIFI_BASE_URL}/advanced/routes`, {
+    const res = await fetchWithTimeout(`${LIFI_BASE_URL}/advanced/routes`, {
       method: "POST",
       headers: getHeaders(),
       body: JSON.stringify({
@@ -177,6 +197,8 @@ export class LiFiProvider implements BridgeProvider {
           integrator: getIntegrator(),
           order: "RECOMMENDED",
           slippage: 0.03,
+          allowBridges: [],
+          allowExchanges: [],
         },
       }),
     });
@@ -197,7 +219,7 @@ export class LiFiProvider implements BridgeProvider {
     }
 
     // Get step transaction
-    const stepRes = await fetch(`${LIFI_BASE_URL}/advanced/stepTransaction`, {
+    const stepRes = await fetchWithTimeout(`${LIFI_BASE_URL}/advanced/stepTransaction`, {
       method: "POST",
       headers: getHeaders(),
       body: JSON.stringify({
@@ -208,7 +230,9 @@ export class LiFiProvider implements BridgeProvider {
     });
 
     if (!stepRes.ok) {
-      throw new Error(`LI.FI step tx error: ${stepRes.status}`);
+      const errorText = await stepRes.text().catch(() => 'Unknown error');
+      const sanitized = errorText.length > 500 ? errorText.slice(0, 500) + '...' : errorText;
+      throw new Error(`LI.FI step tx error: ${stepRes.status} - ${sanitized}`);
     }
 
     const stepData = (await stepRes.json()) as LiFiStepResponse;

@@ -1,3 +1,4 @@
+import { compareNumericStrings } from "@/lib/fetch-utils";
 import type { NormalizedRoute, QuoteRequest, TxRequest } from "../schema";
 
 export interface BridgeProvider {
@@ -55,13 +56,21 @@ export async function getAllQuotes(
     }
   });
 
-  // Sort by estimated output descending (basic heuristic)
+  // Sort by estimated output descending using safe BigInt comparison
   routes.sort((a, b) => {
-    const aOut = parseFloat(a.estimatedOutput.amount) || 0;
-    const bOut = parseFloat(b.estimatedOutput.amount) || 0;
-    const aFee = a.fees.reduce((s, f) => s + (parseFloat(f.amount) || 0), 0);
-    const bFee = b.fees.reduce((s, f) => s + (parseFloat(f.amount) || 0), 0);
-    return bOut - bFee - (aOut - aFee);
+    // Compare output amounts (higher is better)
+    const outputCompare = compareNumericStrings(b.estimatedOutput.amount, a.estimatedOutput.amount);
+    if (outputCompare !== 0) return outputCompare;
+    
+    // If outputs are equal, compare fees (lower is better)
+    const aFeeTotal = a.fees.reduce((s, f) => {
+      try { return (BigInt(s) + BigInt(f.amount)).toString(); } catch { return s; }
+    }, "0");
+    const bFeeTotal = b.fees.reduce((s, f) => {
+      try { return (BigInt(s) + BigInt(f.amount)).toString(); } catch { return s; }
+    }, "0");
+    
+    return compareNumericStrings(aFeeTotal, bFeeTotal);
   });
 
   return { routes: routes.slice(0, 10), errors };

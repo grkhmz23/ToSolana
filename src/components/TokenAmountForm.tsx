@@ -6,6 +6,7 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { useMutation } from "@tanstack/react-query";
 import { SUPPORTED_CHAINS, NATIVE_TOKEN_ADDRESS } from "@/lib/chains";
 import { isValidEvmAddress, isValidSolanaMint } from "@/lib/tokens";
+import { parseTokenAmount } from "@/lib/format";
 import type { NormalizedRoute, QuoteResponse } from "@/server/schema";
 
 interface TokenAmountFormProps {
@@ -37,6 +38,11 @@ export function TokenAmountForm({ onQuotesReceived }: TokenAmountFormProps) {
   const canQuote =
     evmConnected && solConnected && sourceTokenValid && destTokenValid && amountValid;
 
+  // Parse amount to raw token units (assume 18 decimals for native, could be improved)
+  const rawAmount = sourceToken === "native" 
+    ? parseTokenAmount(amount, 18) 
+    : amount; // For custom tokens, assume user enters raw amount or we need to fetch decimals
+
   const quoteMutation = useMutation({
     mutationFn: async () => {
       const res = await fetch("/api/quote", {
@@ -45,7 +51,7 @@ export function TokenAmountForm({ onQuotesReceived }: TokenAmountFormProps) {
         body: JSON.stringify({
           sourceChainId,
           sourceTokenAddress: effectiveSourceToken,
-          sourceAmount: amount,
+          sourceAmount: rawAmount,
           destinationTokenAddress: effectiveDestToken,
           sourceAddress: evmAddress,
           solanaAddress: publicKey?.toBase58(),
