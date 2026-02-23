@@ -20,6 +20,3 @@ LIFI_INTEGRATOR = "tosolana-replit"
 [[ports]]
 localPort = 3000
 externalPort = 80
-
-[agent]
-expertMode = true
