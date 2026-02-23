@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Allow both Turbopack and webpack config for compatibility
+  allowedDevOrigins: ["*"],
   turbopack: {},
   serverExternalPackages: ["pino-pretty", "lokijs", "encoding"],
   transpilePackages: [

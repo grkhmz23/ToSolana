@@ -3,6 +3,7 @@
 # Use pnpm for faster installs
 run = "pnpm install && pnpm run dev"
 hidden = [".next", "node_modules", ".git"]
+modules = ["nodejs-22"]
 
 [nix]
 channel = "stable-24_05"
@@ -20,3 +21,39 @@ LIFI_INTEGRATOR = "tosolana-replit"
 [[ports]]
 localPort = 3000
 externalPort = 80
+
+[[ports]]
+localPort = 5000
+externalPort = 5000
+
+[userenv]
+
+[userenv.shared]
+NEXT_PUBLIC_SOLANA_RPC_URL = "https://api.mainnet-beta.solana.com"
+LIFI_INTEGRATOR = "tosolana-replit"
+ADMIN_API_KEY = "change_me_in_production"
+NODE_ENV = "development"
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start application"
+
+[[workflows.workflow]]
+name = "Start application"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npx next dev -p 5000 -H 0.0.0.0"
+waitForPort = 5000
