@@ -1,13 +1,14 @@
 # Replit configuration for ToSolana
 
-run = "npm run dev"
+# Use pnpm for faster installs
+run = "pnpm install && pnpm run dev"
 hidden = [".next", "node_modules", ".git"]
 
 [nix]
 channel = "stable-24_05"
 
 [deployment]
-run = ["sh", "-c", "npm run db:push && npm run start"]
+run = ["sh", "-c", "pnpm run db:push && pnpm run start"]
 deploymentTarget = "cloudrun"
 
 [env]

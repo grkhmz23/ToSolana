@@ -5,9 +5,14 @@
 1. **Create a new Replit**
    - Go to [replit.com](https://replit.com)
    - Click "Create" → "Import from GitHub"
-   - Paste your repository URL
+   - Paste your repository URL: `https://github.com/grkhmz23/ToSolana`
 
-2. **Configure Environment Variables**
+2. **Wait for Nix Environment Setup**
+   - Replit will automatically configure the environment
+   - This may take 1-2 minutes on first load
+   - If it fails, try clicking "Try Again" or reload the page
+
+3. **Configure Environment Variables**
    In Replit's "Secrets" tab (the lock icon in left sidebar), add:
 
    | Secret | Value | Required? |
@@ -23,16 +28,93 @@
    - LI.FI: https://li.fi/
    - WalletConnect: https://cloud.walletconnect.com/
 
-3. **Deploy**
-   - Click the "Deploy" button in the top right
-   - Replit will automatically run:
-     ```
-     npm run db:push
-     npm run build
-     npm start
-     ```
+4. **Run the App**
+   - Click the "Run" button (▶️) at the top
+   - First run will install dependencies (may take 2-3 minutes)
+   - The webview will open automatically on port 3000
+
+## Deployment
+
+1. Click the "Deploy" button in the top right
+2. Replit will automatically run:
+   ```
+   pnpm run db:push
+   pnpm run build
+   pnpm start
+   ```
+
+## Troubleshooting Nix Environment
+
+### "Nix environment failed to build"
+
+**Solution 1: Reload the Repl**
+1. Click the three dots (⋮) next to your Repl name
+2. Select "Restart" or reload the page
+3. Wait for the environment to rebuild
+
+**Solution 2: Clear Cache**
+1. Open the Shell tab
+2. Run:
+   ```bash
+   rm -rf node_modules .next
+   pnpm install
+   ```
+
+**Solution 3: Check Nix Configuration**
+The `replit.nix` file should contain:
+```nix
+{ pkgs }: {
+  deps = [
+    pkgs.nodejs_20
+    pkgs.pnpm
+    pkgs.git
+  ];
+}
+```
+
+### "Cannot find module" errors
+
+**Solution:**
+```bash
+pnpm install
+pnpm run db:generate
+```
+
+### "No bridge providers configured" error
+
+- Add at least one API key in the Secrets tab
+- Refresh the page after adding secrets
+
+### Database errors
+
+**Solution:**
+```bash
+pnpm run db:push
+```
+
+Or reset the database:
+```bash
+rm -f prisma/dev.db
+pnpm run db:push
+```
+
+### Build fails on Replit
+
+**Check available memory:**
+```bash
+free -h
+```
+
+**Clear build cache:**
+```bash
+rm -rf .next
+pnpm run build
+```
 
 ## Important Notes
+
+### Package Manager
+This project uses **pnpm** (not npm). The lockfile is `pnpm-lock.yaml`.
 
 ### Database
 - Uses SQLite by default (`file:./dev.db`)
@@ -50,27 +132,6 @@ If no providers are configured, the app will show an error message.
 - Required for mobile wallet support
 - Without it, only browser extension wallets work
 
-## Testing Locally on Replit
-
-1. Click the "Run" button (not Deploy)
-2. Wait for the build to complete
-3. Click the URL in the webview tab
-
-## Troubleshooting
-
-### "No bridge providers configured" error
-- Add at least one API key in the Secrets tab
-- Refresh the page after adding secrets
-
-### Database errors
-- Run `npm run db:push` in the Shell tab
-- Or delete `prisma/dev.db` and re-run
-
-### Build fails
-- Check the Console for errors
-- Make sure all environment variables are set
-- Try `npm install` in the Shell tab
-
 ## Architecture for Replit
 
 ```
@@ -83,3 +144,24 @@ User → Replit Cloud Run → Next.js App
 
 - **Non-custodial**: Your app never holds private keys
 - **Serverless-friendly**: SQLite works but PostgreSQL recommended for scale
+
+## Local Development (Non-Replit)
+
+If you want to run locally:
+
+```bash
+# Clone
+git clone https://github.com/grkhmz23/ToSolana.git
+cd ToSolana
+
+# Install dependencies
+pnpm install
+
+# Setup database
+pnpm run db:push
+
+# Run dev server
+pnpm run dev
+```
+
+Visit http://localhost:3000
