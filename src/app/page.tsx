@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useAccount } from "wagmi";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { ConnectEvmWallet } from "@/components/ConnectEvmWallet";
@@ -22,13 +23,26 @@ export default function Home() {
   return (
     <main className="mx-auto max-w-2xl px-4 py-8">
       {/* Header */}
-      <div className="mb-8 text-center">
+      <div className="mb-6 text-center">
         <h1 className="text-3xl font-bold text-[var(--foreground)]">
           To<span className="text-[var(--primary)]">Solana</span>
         </h1>
         <p className="mt-2 text-sm text-[var(--muted)]">
           Bridge assets from EVM chains to Solana
         </p>
+      </div>
+
+      {/* Mode Navigation */}
+      <div className="mb-6 flex justify-center gap-2">
+        <span className="rounded-lg border border-[var(--primary)] bg-[var(--primary)]/10 px-4 py-2 text-sm font-medium text-[var(--primary)]">
+          Pro Mode
+        </span>
+        <Link
+          href="/universal"
+          className="rounded-lg border border-[var(--card-border)] px-4 py-2 text-sm text-[var(--muted)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition-colors"
+        >
+          Universal: Any chain → Solana
+        </Link>
       </div>
 
       {/* Section A: Connect Wallets */}
