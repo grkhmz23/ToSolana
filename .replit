@@ -1,0 +1,21 @@
+# Replit configuration for ToSolana
+
+run = "npm run dev"
+hidden = [".next", "node_modules", ".git"]
+
+[nix]
+channel = "stable-24_05"
+
+[deployment]
+run = ["sh", "-c", "npm run db:push && npm run start"]
+deploymentTarget = "cloudrun"
+
+[env]
+NODE_ENV = "production"
+DATABASE_URL = "file:./dev.db"
+NEXT_PUBLIC_SOLANA_RPC_URL = "https://api.mainnet-beta.solana.com"
+LIFI_INTEGRATOR = "tosolana-replit"
+
+[[ports]]
+localPort = 3000
+externalPort = 80

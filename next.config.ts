@@ -1,8 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Disable Turbopack to use webpack
-  turbopack: undefined,
+  // Allow both Turbopack and webpack config for compatibility
+  turbopack: {},
   serverExternalPackages: ["pino-pretty", "lokijs", "encoding"],
   transpilePackages: [
     "@rango-dev/widget-embedded",

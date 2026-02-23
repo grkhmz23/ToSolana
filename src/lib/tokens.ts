@@ -40,6 +40,11 @@ export function isValidSolanaMint(address: string): boolean {
   return BASE58_REGEX.test(address);
 }
 
+export function isValidSolanaAddress(address: string): boolean {
+  // Solana addresses are base58 encoded and 32-44 characters
+  return BASE58_REGEX.test(address);
+}
+
 export function isValidEvmAddress(address: string): boolean {
   return /^0x[a-fA-F0-9]{40}$/.test(address);
 }

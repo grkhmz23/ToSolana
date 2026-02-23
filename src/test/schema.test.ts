@@ -19,9 +19,52 @@ describe('Schema Validation', () => {
         destinationTokenAddress: 'SOL',
         sourceAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
         solanaAddress: 'HN7cABqLq46Es1jh92dQQisAq662SmxELLLsHHe4YWrH',
+        slippage: 3,
       };
       const result = quoteRequestSchema.safeParse(valid);
       expect(result.success).toBe(true);
+    });
+
+    it('should use default slippage when not provided', () => {
+      const valid = {
+        sourceChainId: 1,
+        sourceTokenAddress: 'native',
+        sourceAmount: '1000',
+        destinationTokenAddress: 'SOL',
+        sourceAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
+        solanaAddress: 'HN7cABqLq46Es1jh92dQQisAq662SmxELLLsHHe4YWrH',
+      };
+      const result = quoteRequestSchema.safeParse(valid);
+      expect(result.success).toBe(true);
+      expect(result.data?.slippage).toBe(3); // Default 3%
+    });
+
+    it('should reject slippage below 0.1%', () => {
+      const invalid = {
+        sourceChainId: 1,
+        sourceTokenAddress: 'native',
+        sourceAmount: '1000',
+        destinationTokenAddress: 'SOL',
+        sourceAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
+        solanaAddress: 'HN7cABqLq46Es1jh92dQQisAq662SmxELLLsHHe4YWrH',
+        slippage: 0.05,
+      };
+      const result = quoteRequestSchema.safeParse(invalid);
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject slippage above 50%', () => {
+      const invalid = {
+        sourceChainId: 1,
+        sourceTokenAddress: 'native',
+        sourceAmount: '1000',
+        destinationTokenAddress: 'SOL',
+        sourceAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
+        solanaAddress: 'HN7cABqLq46Es1jh92dQQisAq662SmxELLLsHHe4YWrH',
+        slippage: 60,
+      };
+      const result = quoteRequestSchema.safeParse(invalid);
+      expect(result.success).toBe(false);
     });
 
     it('should reject negative chain ID', () => {
@@ -157,6 +200,11 @@ describe('Schema Validation', () => {
           },
           fees: [],
         },
+        // History fields
+        sourceChainId: 1,
+        sourceToken: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+        sourceAmount: '1000000000000000000',
+        destToken: 'SOL',
       };
       const result = createSessionRequestSchema.safeParse(valid);
       expect(result.success).toBe(true);

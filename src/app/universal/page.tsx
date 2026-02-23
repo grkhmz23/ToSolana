@@ -99,7 +99,7 @@ export default function UniversalPage() {
       </div>
 
       {/* Navigation */}
-      <div className="mb-6 flex justify-center gap-2">
+      <div className="mb-6 flex flex-wrap justify-center gap-2">
         <Link
           href="/"
           className="rounded-lg border border-[var(--card-border)] px-4 py-2 text-sm text-[var(--muted)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition-colors"
@@ -109,6 +109,12 @@ export default function UniversalPage() {
         <span className="rounded-lg border border-[var(--primary)] bg-[var(--primary)]/10 px-4 py-2 text-sm font-medium text-[var(--primary)]">
           Universal Mode
         </span>
+        <Link
+          href="/history"
+          className="rounded-lg border border-[var(--card-border)] px-4 py-2 text-sm text-[var(--muted)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition-colors"
+        >
+          History
+        </Link>
       </div>
 
       {/* Info Banner */}

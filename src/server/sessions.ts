@@ -1,6 +1,45 @@
 import { prisma } from "./db";
 import type { CreateSessionRequest, StepStatus } from "./schema";
 
+// ---- History queries ----
+
+export async function getSessionHistory(
+  sourceAddress: string,
+  solanaAddress: string,
+  limit: number = 50,
+  offset: number = 0,
+) {
+  const sessions = await prisma.quoteSession.findMany({
+    where: {
+      OR: [
+        { sourceAddress: sourceAddress.toLowerCase() },
+        { solanaAddress: solanaAddress.toLowerCase() },
+      ],
+      status: { in: ["completed", "failed"] },
+    },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    skip: offset,
+    include: { steps: { orderBy: { index: "asc" } } },
+  });
+  return sessions;
+}
+
+export async function getSessionHistoryCount(
+  sourceAddress: string,
+  solanaAddress: string,
+) {
+  return prisma.quoteSession.count({
+    where: {
+      OR: [
+        { sourceAddress: sourceAddress.toLowerCase() },
+        { solanaAddress: solanaAddress.toLowerCase() },
+      ],
+      status: { in: ["completed", "failed"] },
+    },
+  });
+}
+
 export async function createSession(req: CreateSessionRequest) {
   const session = await prisma.quoteSession.create({
     data: {
@@ -11,6 +50,12 @@ export async function createSession(req: CreateSessionRequest) {
       status: "quoted",
       selectedRouteJson: JSON.stringify(req.route),
       currentStep: 0,
+      // History fields
+      sourceChainId: String(req.sourceChainId),
+      sourceToken: req.sourceToken,
+      sourceAmount: req.sourceAmount,
+      destToken: req.destToken,
+      estimatedOutput: req.route.estimatedOutput.amount,
       steps: {
         create: req.route.steps.map((step, index) => ({
           index,
@@ -71,6 +116,7 @@ export async function updateStepStatus(
         data: {
           currentStep: stepIndex + 1,
           status: allDone ? "completed" : "bridging",
+          ...(allDone ? { completedAt: new Date() } : {}),
         },
       });
     }

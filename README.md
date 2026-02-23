@@ -110,6 +110,35 @@ prisma/
 - **Provider abstraction**: Both LI.FI and Rango implement a common `BridgeProvider` interface, making it straightforward to add more providers.
 - **Graceful degradation**: If one provider's API key is missing or it fails, the other provider's routes are still shown.
 
+## Official 1:1 Bridge (Token Registry)
+
+ToSolana supports "Official 1:1" bridges for projects that have deployed NTT (Native Token Transfer) or OFT (Omnichain Fungible Token) contracts. These routes appear at the top of quote results and offer:
+
+- **No slippage** - Exact 1:1 ratio
+- **No bridge fees** - Direct native token transfer
+- **Fast settlement** - Typically 2-5 minutes
+
+### How it works
+
+1. **Admin Onboarding**: Project teams register their token via the admin panel (`/admin`)
+2. **Verification**: System validates ERC20 contract and Solana mint
+3. **Activation**: After verification, the token appears as an "Official 1:1" route
+4. **User Flow**: Users select the official route and complete transfer via dedicated bridge UI
+
+### Token Modes
+
+- **NTT** (Native Token Transfer) - Wormhole's native token standard
+- **OFT** (Omnichain Fungible Token) - LayerZero's omnichain token standard  
+- **WRAPPED** - Traditional wrapped token (not shown as 1:1)
+
+### Admin Setup
+
+1. Set `ADMIN_API_KEY` in `.env` (strong random string)
+2. Access `/admin` and enter the key
+3. Add tokens with ERC20 address, Solana mint, and mode
+4. Verify on-chain metadata
+5. Activate to make available to users
+
 ## Production Considerations
 
 - Swap `DATABASE_URL` to a PostgreSQL connection string
@@ -117,3 +146,4 @@ prisma/
 - Add proper error monitoring (Sentry, etc.)
 - Consider caching quotes with short TTL
 - Add transaction receipt verification for bridge completion
+- **Protect ADMIN_API_KEY**: Never expose it client-side; it's only used server-side for admin routes

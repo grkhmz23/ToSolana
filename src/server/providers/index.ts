@@ -2,7 +2,7 @@ import { compareNumericStrings } from "@/lib/fetch-utils";
 import type { NormalizedRoute, QuoteRequest, TxRequest } from "../schema";
 
 export interface BridgeProvider {
-  name: "rango" | "lifi";
+  name: "rango" | "lifi" | "thorchain" | "ibc" | "ton";
   isConfigured(): boolean;
   getQuotes(intent: QuoteRequest): Promise<NormalizedRoute[]>;
   getStepTx(
@@ -14,13 +14,25 @@ export interface BridgeProvider {
 
 import { LiFiProvider } from "./lifi";
 import { RangoProvider } from "./rango";
+import { ThorchainProvider } from "./thorchain";
+import { IbcProvider } from "./ibc";
+import { TonProvider } from "./ton";
 
 const lifiProvider = new LiFiProvider();
 const rangoProvider = new RangoProvider();
+const thorchainProvider = new ThorchainProvider();
+const ibcProvider = new IbcProvider();
+const tonProvider = new TonProvider();
 
-export const providers: BridgeProvider[] = [lifiProvider, rangoProvider];
+export const providers: BridgeProvider[] = [
+  lifiProvider,
+  rangoProvider,
+  thorchainProvider,
+  ibcProvider,
+  tonProvider,
+];
 
-export function getProvider(name: "rango" | "lifi"): BridgeProvider {
+export function getProvider(name: "rango" | "lifi" | "thorchain" | "ibc" | "ton"): BridgeProvider {
   const p = providers.find((p) => p.name === name);
   if (!p) throw new Error(`Unknown provider: ${name}`);
   return p;
@@ -52,7 +64,11 @@ export async function getAllQuotes(
       routes.push(...result.value);
     } else {
       const providerName = configuredProviders[i]?.name ?? "unknown";
-      errors.push(`${providerName}: ${String(result.reason)}`);
+      // Only log non-critical errors
+      const errorMsg = String(result.reason);
+      if (!errorMsg.includes("Unsupported chain")) {
+        errors.push(`${providerName}: ${errorMsg}`);
+      }
     }
   });
 

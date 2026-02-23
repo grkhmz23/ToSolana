@@ -104,7 +104,7 @@ export class LiFiProvider implements BridgeProvider {
         options: {
           integrator: getIntegrator(),
           order: "RECOMMENDED",
-          slippage: 0.03,
+          slippage: intent.slippage / 100, // Convert percentage to decimal (3% -> 0.03)
           allowBridges: [], // Allow all bridges
           allowExchanges: [], // Allow all exchanges
         },
@@ -196,7 +196,7 @@ export class LiFiProvider implements BridgeProvider {
         options: {
           integrator: getIntegrator(),
           order: "RECOMMENDED",
-          slippage: 0.03,
+          slippage: intent.slippage / 100, // Convert percentage to decimal
           allowBridges: [],
           allowExchanges: [],
         },

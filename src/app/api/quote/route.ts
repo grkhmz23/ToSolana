@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { quoteRequestSchema } from "@/server/schema";
 import { getAllQuotes } from "@/server/providers";
+import { injectOfficialRoute } from "@/server/official-routes";
 import { isValidNumericString } from "@/lib/fetch-utils";
-import { isEvmChainSupported } from "@/lib/chains";
+import { isEvmChainSupported, isChainSupported, getChainType } from "@/lib/chains";
 import { isValidEvmAddress, isValidSolanaMint } from "@/lib/tokens";
+import { validateNonEvmAddress } from "@/lib/nonEvmWallets";
 
 // Simple in-memory rate limiting (per IP)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
@@ -60,21 +62,34 @@ export async function POST(request: Request) {
     const intent = parsed.data;
 
     // Additional validations
-    if (!isEvmChainSupported(intent.sourceChainId)) {
+    if (!isChainSupported(intent.sourceChainId)) {
       return NextResponse.json(
         { error: "Unsupported source chain" },
         { status: 400 },
       );
     }
 
+    const chainType = getChainType(intent.sourceChainId);
+
     // Validate source token address
-    if (intent.sourceTokenAddress !== "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" &&
-        intent.sourceTokenAddress !== "native" &&
-        !isValidEvmAddress(intent.sourceTokenAddress)) {
-      return NextResponse.json(
-        { error: "Invalid source token address" },
-        { status: 400 },
-      );
+    if (chainType === "evm") {
+      if (intent.sourceTokenAddress !== "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" &&
+          intent.sourceTokenAddress !== "native" &&
+          !isValidEvmAddress(intent.sourceTokenAddress)) {
+        return NextResponse.json(
+          { error: "Invalid source token address" },
+          { status: 400 },
+        );
+      }
+    } else {
+      // Non-EVM chains use "native" or specific token identifiers
+      if (intent.sourceTokenAddress !== "native" && 
+          typeof intent.sourceTokenAddress !== "string") {
+        return NextResponse.json(
+          { error: "Invalid source token address" },
+          { status: 400 },
+        );
+      }
     }
 
     // Validate destination token address
@@ -85,12 +100,35 @@ export async function POST(request: Request) {
       );
     }
 
-    // Validate source address
-    if (!isValidEvmAddress(intent.sourceAddress)) {
-      return NextResponse.json(
-        { error: "Invalid source address" },
-        { status: 400 },
-      );
+    // Validate source address based on chain type
+    if (chainType === "evm") {
+      if (!isValidEvmAddress(intent.sourceAddress)) {
+        return NextResponse.json(
+          { error: "Invalid source address" },
+          { status: 400 },
+        );
+      }
+    } else if (chainType === "bitcoin") {
+      if (!validateNonEvmAddress(intent.sourceAddress, "bitcoin")) {
+        return NextResponse.json(
+          { error: "Invalid Bitcoin address" },
+          { status: 400 },
+        );
+      }
+    } else if (chainType === "cosmos") {
+      if (!validateNonEvmAddress(intent.sourceAddress, "cosmos")) {
+        return NextResponse.json(
+          { error: "Invalid Cosmos address" },
+          { status: 400 },
+        );
+      }
+    } else if (chainType === "ton") {
+      if (!validateNonEvmAddress(intent.sourceAddress, "ton")) {
+        return NextResponse.json(
+          { error: "Invalid TON address" },
+          { status: 400 },
+        );
+      }
     }
 
     // Validate Solana address
@@ -115,14 +153,17 @@ export async function POST(request: Request) {
 
     const { routes, errors } = await getAllQuotes(intent);
 
-    if (routes.length === 0 && errors.length > 0) {
+    // Inject official 1:1 routes if applicable
+    const routesWithOfficial = await injectOfficialRoute(routes, intent);
+
+    if (routesWithOfficial.length === 0 && errors.length > 0) {
       return NextResponse.json(
         { routes: [], errors },
         { status: errors.some((e) => e.includes("No bridge providers configured")) ? 400 : 200 },
       );
     }
 
-    return NextResponse.json({ routes, errors: errors.length > 0 ? errors : undefined });
+    return NextResponse.json({ routes: routesWithOfficial, errors: errors.length > 0 ? errors : undefined })
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     // Sanitize error in production

@@ -10,6 +10,7 @@ datasource db {
 model QuoteSession {
   id               String   @id @default(cuid())
   createdAt        DateTime @default(now())
+  completedAt      DateTime?
   sourceAddress    String
   solanaAddress    String
   provider         String
@@ -18,6 +19,14 @@ model QuoteSession {
   selectedRouteJson String
   currentStep      Int      @default(0)
   errorMessage     String?
+  
+  // For history - store key transfer details
+  sourceChainId    String
+  sourceToken      String
+  sourceAmount     String
+  destToken        String
+  estimatedOutput  String
+  
   steps            Step[]
 }
 
@@ -32,4 +41,45 @@ model Step {
   session      QuoteSession @relation(fields: [sessionId], references: [id])
 
   @@unique([sessionId, index])
+}
+
+// Project Token Registry for Official 1:1 Bridges
+model ProjectToken {
+  id                    String   @id @default(cuid())
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  sourceChainType       String   @default("evm") // "evm" for future-proofing
+  sourceChainId         Int      // Ethereum=1, etc.
+  sourceTokenAddress    String   // Lowercased ERC20 address
+  
+  name                  String
+  symbol                String
+  decimals              Int
+  
+  solanaMint            String   // Base58 SPL mint address
+  
+  mode                  String   // "WRAPPED" | "NTT" | "OFT"
+  status                String   @default("DRAFT") // "DRAFT" | "ACTIVE" | "DISABLED"
+  
+  providerConfig        String?  @default("{}") // JSON string for config
+  
+  verifiedAt            DateTime?
+  notes                 String?
+  
+  verificationLogs      TokenVerificationLog[]
+  
+  @@unique([sourceChainId, sourceTokenAddress])
+  @@index([status, symbol])
+}
+
+model TokenVerificationLog {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  
+  projectTokenId  String
+  projectToken    ProjectToken @relation(fields: [projectTokenId], references: [id])
+  
+  ok              Boolean
+  details         String   @default("{}") // JSON string for verification details
 }

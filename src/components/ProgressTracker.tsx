@@ -7,11 +7,18 @@ import { useWalletClient, usePublicClient } from "wagmi";
 import { useQuery } from "@tanstack/react-query";
 import type { NormalizedRoute, StatusResponse, TxRequest } from "@/server/schema";
 import { shortenAddress } from "@/lib/format";
+import { useToast } from "@/hooks/useToast";
+import { NonEvmTransactionModal } from "./NonEvmTransactionModal";
 
 interface ProgressTrackerProps {
   route: NormalizedRoute;
   sourceAddress: string;
   solanaAddress: string;
+  // History fields
+  sourceChainId: number | string;
+  sourceToken: string;
+  sourceAmount: string;
+  destToken: string;
 }
 
 type SessionState = {
@@ -22,10 +29,26 @@ type SessionState = {
   completed: boolean;
 };
 
-export function ProgressTracker({ route, sourceAddress, solanaAddress }: ProgressTrackerProps) {
+type NonEvmTxState = {
+  isOpen: boolean;
+  txRequest: TxRequest | null;
+  stepIndex: number;
+  stepDescription: string;
+};
+
+export function ProgressTracker({ 
+  route, 
+  sourceAddress, 
+  solanaAddress,
+  sourceChainId,
+  sourceToken,
+  sourceAmount,
+  destToken,
+}: ProgressTrackerProps) {
   const { signTransaction } = useWallet();
   const { data: walletClient } = useWalletClient();
   const publicClient = usePublicClient();
+  const { success, error: showError, info } = useToast();
 
   const [state, setState] = useState<SessionState>({
     sessionId: null,
@@ -33,6 +56,17 @@ export function ProgressTracker({ route, sourceAddress, solanaAddress }: Progres
     error: null,
     currentStepIndex: 0,
     completed: false,
+  });
+  
+  // Track previously completed steps for toast notifications
+  const [notifiedSteps, setNotifiedSteps] = useState<Set<number>>(new Set());
+  
+  // Non-EVM transaction modal state
+  const [nonEvmTx, setNonEvmTx] = useState<NonEvmTxState>({
+    isOpen: false,
+    txRequest: null,
+    stepIndex: 0,
+    stepDescription: "",
   });
 
   // Poll session status with max duration
@@ -69,6 +103,11 @@ export function ProgressTracker({ route, sourceAddress, solanaAddress }: Progres
         provider: route.provider,
         routeId: route.routeId,
         route,
+        // History fields
+        sourceChainId,
+        sourceToken,
+        sourceAmount,
+        destToken,
       }),
     });
     const data = (await res.json()) as { sessionId: string; error?: string };
@@ -76,10 +115,13 @@ export function ProgressTracker({ route, sourceAddress, solanaAddress }: Progres
       throw new Error(data.error ?? "Failed to create session");
     }
     return data.sessionId;
-  }, [route, sourceAddress, solanaAddress]);
+  }, [route, sourceAddress, solanaAddress, sourceChainId, sourceToken, sourceAmount, destToken]);
 
   const executeStep = useCallback(
     async (sessionId: string, stepIndex: number) => {
+      const stepInfo = route.steps[stepIndex];
+      const stepName = stepInfo?.description ?? `Step ${stepIndex + 1}`;
+      
       // 1. Get tx request from backend
       const res = await fetch("/api/execute/step", {
         method: "POST",
@@ -139,64 +181,80 @@ export function ProgressTracker({ route, sourceAddress, solanaAddress }: Progres
             txHashOrSig,
           }),
         });
+        
+        // Show success toast
+        success(`${stepName} completed`, `EVM transaction confirmed`);
       } else {
-        // Solana: deserialize VersionedTransaction, sign, send
-        if (!signTransaction) throw new Error("Solana wallet not connected");
+        // Handle different transaction types
+        if (txRequest.kind === "solana") {
+          // Solana: deserialize VersionedTransaction, sign, send
+          if (!signTransaction) throw new Error("Solana wallet not connected");
 
-        const txBuffer = Buffer.from(txRequest.serializedTxBase64, "base64");
-        const versionedTx = VersionedTransaction.deserialize(txBuffer);
-        const signedTx = await signTransaction(versionedTx);
-        const serialized = signedTx.serialize();
+          const txBuffer = Buffer.from(txRequest.serializedTxBase64, "base64");
+          const versionedTx = VersionedTransaction.deserialize(txBuffer);
+          const signedTx = await signTransaction(versionedTx);
+          const serialized = signedTx.serialize();
 
-        const connection = new Connection(
-          txRequest.rpc || process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com",
-        );
+          const connection = new Connection(
+            txRequest.rpc || process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com",
+          );
 
-        txHashOrSig = await connection.sendRawTransaction(serialized, {
-          skipPreflight: false,
-          maxRetries: 3,
-        });
+          txHashOrSig = await connection.sendRawTransaction(serialized, {
+            skipPreflight: false,
+            maxRetries: 3,
+          });
 
-        // Update step as submitted
-        await fetch("/api/execute/step", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            sessionId,
+          // Update step as submitted
+          await fetch("/api/execute/step", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              sessionId,
+              stepIndex,
+              status: "submitted",
+              txHashOrSig,
+            }),
+          });
+
+          // Poll for confirmation with timeout
+          const confirmation = await Promise.race([
+            connection.confirmTransaction(txHashOrSig, "confirmed"),
+            new Promise<never>((_, reject) => 
+              setTimeout(() => reject(new Error("Solana confirmation timeout")), 60000)
+            ),
+          ]);
+          if (confirmation.value.err) {
+            throw new Error(`Solana transaction failed: ${JSON.stringify(confirmation.value.err)}`);
+          }
+        } else if (txRequest.kind === "bitcoin" || txRequest.kind === "cosmos" || txRequest.kind === "ton") {
+          // Non-EVM: Show transaction modal for wallet signing
+          setNonEvmTx({
+            isOpen: true,
+            txRequest,
             stepIndex,
-            status: "submitted",
-            txHashOrSig,
-          }),
-        });
-
-        // Poll for confirmation with timeout
-        const confirmation = await Promise.race([
-          connection.confirmTransaction(txHashOrSig, "confirmed"),
-          new Promise<never>((_, reject) => 
-            setTimeout(() => reject(new Error("Solana confirmation timeout")), 60000)
-          ),
-        ]);
-        if (confirmation.value.err) {
-          throw new Error(`Solana transaction failed: ${JSON.stringify(confirmation.value.err)}`);
+            stepDescription: stepName,
+          });
+          
+          // Wait for user to complete the transaction via the modal
+          // This is handled by the NonEvmTransactionModal component
+          throw new Error(`Please confirm the ${txRequest.kind} transaction in your wallet`);
+        } else {
+          throw new Error(`Unsupported transaction type: ${(txRequest as TxRequest).kind}`);
         }
-
-        await fetch("/api/execute/step", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            sessionId,
-            stepIndex,
-            status: "confirmed",
-            txHashOrSig,
-          }),
-        });
       }
     },
-    [route.provider, route.routeId, walletClient, publicClient, signTransaction],
+    [route.provider, route.routeId, route.steps, walletClient, publicClient, signTransaction, success],
   );
 
   const startTransfer = useCallback(async () => {
     setState((s) => ({ ...s, isExecuting: true, error: null }));
+    setNotifiedSteps(new Set()); // Reset notifications
+    
+    // Show starting toast
+    info(
+      "Starting bridge transfer...",
+      `${route.steps.length} step${route.steps.length > 1 ? "s" : ""} to complete`
+    );
 
     try {
       const sessionId = await createSession();
@@ -208,25 +266,64 @@ export function ProgressTracker({ route, sourceAddress, solanaAddress }: Progres
       }
 
       setState((s) => ({ ...s, completed: true, isExecuting: false }));
+      
+      // Show final success toast
+      success(
+        "Bridge transfer completed!",
+        `You received ${route.estimatedOutput.amount} ${route.estimatedOutput.token} on Solana`
+      );
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
       setState((s) => ({ ...s, error: message, isExecuting: false }));
+      
+      // Show error toast
+      showError("Transfer failed", message);
     }
-  }, [createSession, executeStep, route.steps.length]);
+  }, [createSession, executeStep, route.steps, route.estimatedOutput, success, showError, info]);
 
-  // Sync state from poll
+  // Sync state from poll and show notifications for step completions
   useEffect(() => {
-    if (statusData?.status === "completed") {
+    if (!statusData) return;
+    
+    if (statusData.status === "completed") {
       setState((s) => ({ ...s, completed: true, isExecuting: false }));
+      
+      // Show completion toast if not already notified
+      if (!notifiedSteps.has(999)) { // Use 999 to indicate final completion
+        success(
+          "Bridge transfer completed!",
+          `Assets successfully bridged to Solana`
+        );
+        setNotifiedSteps((prev) => new Set([...prev, 999]));
+      }
     }
-    if (statusData?.status === "failed") {
+    
+    if (statusData.status === "failed") {
       setState((s) => ({
         ...s,
         error: statusData.errorMessage ?? "Transfer failed",
         isExecuting: false,
       }));
+      
+      // Show error toast if not already notified
+      if (!notifiedSteps.has(-1)) { // Use -1 to indicate error
+        showError("Transfer failed", statusData.errorMessage ?? "Unknown error");
+        setNotifiedSteps((prev) => new Set([...prev, -1]));
+      }
     }
-  }, [statusData]);
+    
+    // Notify for individual step completions from polling
+    statusData.steps?.forEach((step) => {
+      if (
+        (step.status === "confirmed" || step.status === "completed") &&
+        !notifiedSteps.has(step.index)
+      ) {
+        const stepName = route.steps[step.index]?.description ?? `Step ${step.index + 1}`;
+        success(`${stepName} confirmed`, `${step.chainType.toUpperCase()} transaction successful`);
+        setNotifiedSteps((prev) => new Set([...prev, step.index]));
+      }
+    });
+  }, [statusData, route.steps, success, showError, notifiedSteps]);
 
   const stepStatuses = statusData?.steps ?? route.steps.map((_, i) => ({
     index: i,
@@ -343,6 +440,50 @@ export function ProgressTracker({ route, sourceAddress, solanaAddress }: Progres
           {state.isExecuting ? "Executing..." : "Start Transfer"}
         </button>
       )}
+
+      {/* Non-EVM Transaction Modal */}
+      <NonEvmTransactionModal
+        isOpen={nonEvmTx.isOpen}
+        onClose={() => setNonEvmTx((s) => ({ ...s, isOpen: false }))}
+        txRequest={nonEvmTx.txRequest}
+        stepDescription={nonEvmTx.stepDescription}
+        onSuccess={async (txHash) => {
+          if (!state.sessionId) return;
+          
+          // Update step as submitted
+          await fetch("/api/execute/step", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              sessionId: state.sessionId,
+              stepIndex: nonEvmTx.stepIndex,
+              status: "submitted",
+              txHashOrSig: txHash,
+            }),
+          });
+
+          // Mark confirmed
+          await fetch("/api/execute/step", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              sessionId: state.sessionId,
+              stepIndex: nonEvmTx.stepIndex,
+              status: "confirmed",
+              txHashOrSig: txHash,
+            }),
+          });
+
+          success(`${nonEvmTx.stepDescription} completed`, `${nonEvmTx.txRequest?.kind} transaction confirmed`);
+          
+          // Close modal
+          setNonEvmTx({ isOpen: false, txRequest: null, stepIndex: 0, stepDescription: "" });
+        }}
+        onError={(error) => {
+          showError("Transaction failed", error.message);
+          setState((s) => ({ ...s, error: error.message, isExecuting: false }));
+        }}
+      />
     </div>
   );
 }

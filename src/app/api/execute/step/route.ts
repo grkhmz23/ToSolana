@@ -117,7 +117,7 @@ export async function POST(request: Request) {
     }
 
     // Parse and validate stored route
-    let route: { steps: { chainType: string; chainId?: number }[] };
+    let route: { steps: { chainType: string; chainId?: number | string }[] };
     try {
       route = JSON.parse(session.selectedRouteJson) as typeof route;
     } catch {
@@ -146,12 +146,14 @@ export async function POST(request: Request) {
     // Store it in the session or reconstruct from context
     // For now, we pass a minimal intent with session data
     const intent = {
-      sourceChainId: step.chainId ?? 1,
+      sourceChainId: step.chainId ?? session.sourceChainId ?? 1,
       sourceTokenAddress: "native",
-      sourceAmount: "0",
-      destinationTokenAddress: "SOL",
+      sourceAmount: session.sourceAmount ?? "0",
+      destinationTokenAddress: session.destToken ?? "SOL",
       sourceAddress: session.sourceAddress,
       solanaAddress: session.solanaAddress,
+      slippage: 3, // Default slippage for execute step
+      sourceChainType: step.chainType as "evm" | "bitcoin" | "cosmos" | "ton" | "solana",
     };
 
     const txRequest = await bridgeProvider.getStepTx(routeId, stepIndex, intent);

@@ -26,6 +26,15 @@ function evmChainToRango(chainId: number): string {
     42161: "ARBITRUM",
     8453: "BASE",
     43114: "AVAX_CCHAIN",
+    250: "FANTOM",
+    100: "GNOSIS",
+    25: "CRONOS",
+    1313161554: "NEAR",
+    324: "ZKSYNC",
+    59144: "LINEA",
+    1101: "POLYGONZK",
+    534352: "SCROLL",
+    81457: "BLAST",
   };
   return map[chainId] ?? `EVM_${chainId}`;
 }
@@ -89,6 +98,11 @@ export class RangoProvider implements BridgeProvider {
   }
 
   async getQuotes(intent: QuoteRequest): Promise<NormalizedRoute[]> {
+    // Skip non-EVM chains (Rango only supports EVM)
+    if (typeof intent.sourceChainId === "string") {
+      return [];
+    }
+
     const fromBlockchain = evmChainToRango(intent.sourceChainId);
     const isNativeSource =
       intent.sourceTokenAddress === "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" ||
@@ -113,7 +127,7 @@ export class RangoProvider implements BridgeProvider {
         address: isNativeDest ? null : intent.destinationTokenAddress,
       },
       amount: intent.sourceAmount,
-      slippage: "3",
+      slippage: String(intent.slippage),
       fromAddress: intent.sourceAddress,
       toAddress: intent.solanaAddress,
     };
@@ -195,6 +209,11 @@ export class RangoProvider implements BridgeProvider {
       throw new Error(`Invalid step index: ${stepIndex}`);
     }
 
+    // Skip non-EVM chains
+    if (typeof intent.sourceChainId === "string") {
+      throw new Error("Rango provider only supports EVM chains");
+    }
+
     const fromBlockchain = evmChainToRango(intent.sourceChainId);
     const isNativeSource =
       intent.sourceTokenAddress === "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" ||
@@ -207,7 +226,7 @@ export class RangoProvider implements BridgeProvider {
     const body = {
       requestId: routeId,
       step: stepIndex + 1,
-      userSettings: { slippage: "3" },
+      userSettings: { slippage: String(intent.slippage) },
       validations: { balance: false, fee: false },
       from: {
         blockchain: fromBlockchain,
@@ -277,6 +296,21 @@ function nativeSymbol(chainId: number): string {
     42161: "ETH",
     8453: "ETH",
     43114: "AVAX",
+    250: "FTM",
+    100: "XDAI",
+    25: "CRO",
+    42220: "CELO",
+    1313161554: "ETH",
+    1666600000: "ONE",
+    1088: "METIS",
+    324: "ETH",
+    1101: "ETH",
+    59144: "ETH",
+    534352: "ETH",
+    5000: "MNT",
+    81457: "ETH",
+    169: "ETH",
+    7777777: "ETH",
   };
   return map[chainId] ?? "ETH";
 }

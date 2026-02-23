@@ -22,6 +22,53 @@ body {
     sans-serif;
 }
 
+/* Glass Panel Effect */
+.glass-panel {
+  background: linear-gradient(145deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%);
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.05), 0 8px 32px rgba(0,0,0,0.4);
+  backdrop-filter: blur(40px);
+}
+
+/* Text Glow Effect */
+.text-glow {
+  text-shadow: 0 0 30px rgba(99, 102, 241, 0.4);
+}
+
+/* Hide Number Input Arrows */
+.hide-arrows::-webkit-inner-spin-button,
+.hide-arrows::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.hide-arrows {
+  -moz-appearance: textfield;
+}
+
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.1);
+  border-radius: 10px;
+}
+
+/* Gradient Mesh Animation */
+@keyframes meshPulse {
+  0% {
+    transform: scale(1) rotate(0deg);
+  }
+  100% {
+    transform: scale(1.1) rotate(5deg);
+  }
+}
+
 /* Solana wallet adapter overrides */
 .wallet-adapter-button {
   background-color: var(--primary) !important;

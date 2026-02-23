@@ -1,132 +1,80 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import Link from "next/link";
-import { useAccount } from "wagmi";
-import { useWallet } from "@solana/wallet-adapter-react";
-import { ConnectEvmWallet } from "@/components/ConnectEvmWallet";
-import { ConnectSolanaWallet } from "@/components/ConnectSolanaWallet";
-import { TokenAmountForm } from "@/components/TokenAmountForm";
-import { RoutesList } from "@/components/RoutesList";
-import { ProgressTracker } from "@/components/ProgressTracker";
-import type { NormalizedRoute } from "@/server/schema";
+import { useState } from 'react';
+import { motion } from 'framer-motion';
+import { NoiseOverlay } from '@/components/ui/NoiseOverlay';
+import { FloatingIslandHeader } from '@/components/bridge/FloatingIslandHeader';
+import { BridgeWidget } from '@/components/bridge/BridgeWidget';
 
 export default function Home() {
-  const { address: evmAddress } = useAccount();
-  const { publicKey } = useWallet();
-
-  const [routes, setRoutes] = useState<NormalizedRoute[]>([]);
-  const [quoteErrors, setQuoteErrors] = useState<string[]>([]);
-  const [selectedRoute, setSelectedRoute] = useState<NormalizedRoute | null>(null);
-  const [isTransferring, setIsTransferring] = useState(false);
+  const [isSourceConnected, setIsSourceConnected] = useState(false);
+  const [isDestConnected, setIsDestConnected] = useState(false);
+  const [walletModalOpen, setWalletModalOpen] = useState(false);
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-8">
-      {/* Header */}
-      <div className="mb-6 text-center">
-        <h1 className="text-3xl font-bold text-[var(--foreground)]">
-          To<span className="text-[var(--primary)]">Solana</span>
-        </h1>
-        <p className="mt-2 text-sm text-[var(--muted)]">
-          Bridge assets from EVM chains to Solana
-        </p>
-      </div>
-
-      {/* Mode Navigation */}
-      <div className="mb-6 flex justify-center gap-2">
-        <span className="rounded-lg border border-[var(--primary)] bg-[var(--primary)]/10 px-4 py-2 text-sm font-medium text-[var(--primary)]">
-          Pro Mode
-        </span>
-        <Link
-          href="/universal"
-          className="rounded-lg border border-[var(--card-border)] px-4 py-2 text-sm text-[var(--muted)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition-colors"
-        >
-          Universal: Any chain → Solana
-        </Link>
-      </div>
-
-      {/* Section A: Connect Wallets */}
-      <section className="mb-6 rounded-xl border border-[var(--card-border)] bg-[var(--card)] p-5">
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-[var(--muted)]">
-          1. Connect Wallets
-        </h2>
-        <div className="space-y-4">
-          <div>
-            <label className="mb-2 block text-xs text-[var(--muted)]">Source (EVM)</label>
-            <ConnectEvmWallet />
-          </div>
-          <div>
-            <label className="mb-2 block text-xs text-[var(--muted)]">
-              Destination (Solana)
-            </label>
-            <ConnectSolanaWallet />
-          </div>
-        </div>
-      </section>
-
-      {/* Section B: Transfer Details */}
-      <section className="mb-6 rounded-xl border border-[var(--card-border)] bg-[var(--card)] p-5">
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-[var(--muted)]">
-          2. Transfer Details
-        </h2>
-        <TokenAmountForm
-          onQuotesReceived={(newRoutes, errors) => {
-            setRoutes(newRoutes);
-            setQuoteErrors(errors ?? []);
-            setSelectedRoute(null);
-            setIsTransferring(false);
+    <div className="min-h-screen bg-[#05050A] text-slate-50 font-sans selection:bg-indigo-500/30 overflow-hidden relative">
+      <NoiseOverlay />
+      
+      {/* Background Gradient Mesh */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <div 
+          className="absolute inset-0"
+          style={{
+            background: `
+              radial-gradient(circle at 15% 50%, rgba(99, 102, 241, 0.15), transparent 50%),
+              radial-gradient(circle at 85% 30%, rgba(6, 182, 212, 0.15), transparent 50%),
+              radial-gradient(circle at 50% 80%, rgba(139, 92, 246, 0.1), transparent 50%)
+            `,
+            filter: 'blur(60px)',
+            animation: 'meshPulse 10s ease-in-out infinite alternate'
           }}
         />
-      </section>
+      </div>
 
-      {/* Section C: Quotes */}
-      {(routes.length > 0 || quoteErrors.length > 0) && (
-        <section className="mb-6 rounded-xl border border-[var(--card-border)] bg-[var(--card)] p-5">
-          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-[var(--muted)]">
-            3. Select Route
-          </h2>
-          <RoutesList
-            routes={routes}
-            errors={quoteErrors}
-            selectedRouteId={selectedRoute?.routeId ?? null}
-            onSelectRoute={(route) => {
-              setSelectedRoute(route);
-              setIsTransferring(false);
-            }}
-          />
+      {/* Floating Header */}
+      <FloatingIslandHeader 
+        onConnect={() => setWalletModalOpen(true)} 
+        isSourceConnected={isSourceConnected} 
+        isDestConnected={isDestConnected} 
+      />
 
-          {selectedRoute && !isTransferring && (
-            <button
-              onClick={() => setIsTransferring(true)}
-              className="mt-4 w-full rounded-lg bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-[var(--background)] hover:opacity-90 transition-opacity"
-            >
-              Proceed with {selectedRoute.provider.toUpperCase()} route
-            </button>
-          )}
-        </section>
-      )}
+      {/* Main Content */}
+      <main className="relative z-10 pt-32 pb-20 px-4 min-h-screen flex flex-col items-center justify-center">
+        
+        {/* Hero Title */}
+        <div className="text-center mb-10 z-20">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            transition={{ duration: 0.7, ease: "easeOut" }}
+          >
+            <h1 className="text-6xl md:text-8xl font-black tracking-tighter mb-4">
+              Bridge to <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-indigo-400 to-cyan-400">Solana.</span>
+            </h1>
+            <p className="text-slate-400 text-lg md:text-xl max-w-xl mx-auto font-medium">
+              Direct liquidity from 25+ ecosystems. Zero friction, non-custodial.
+            </p>
+          </motion.div>
+        </div>
 
-      {/* Section D: Execution + Progress */}
-      {selectedRoute && isTransferring && evmAddress && publicKey && (
-        <section className="mb-6 rounded-xl border border-[var(--card-border)] bg-[var(--card)] p-5">
-          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-[var(--muted)]">
-            4. Transfer Progress
-          </h2>
-          <ProgressTracker
-            route={selectedRoute}
-            sourceAddress={evmAddress}
-            solanaAddress={publicKey.toBase58()}
-          />
-        </section>
-      )}
+        {/* Bridge Widget */}
+        <BridgeWidget
+          onConnectWallets={() => setWalletModalOpen(true)}
+          isSourceConnected={isSourceConnected}
+          isDestConnected={isDestConnected}
+          setIsSourceConnected={setIsSourceConnected}
+          setIsDestConnected={setIsDestConnected}
+        />
 
-      {/* Footer info */}
-      <footer className="mt-8 text-center text-xs text-[var(--muted)]">
-        <p>Non-custodial. Your keys, your assets.</p>
-        <p className="mt-1">
-          Powered by LI.FI and Rango. ToSolana never holds or signs your transactions.
-        </p>
-      </footer>
-    </main>
+      </main>
+
+      {/* CSS Animations */}
+      <style jsx global>{`
+        @keyframes meshPulse {
+          0% { transform: scale(1) rotate(0deg); }
+          100% { transform: scale(1.1) rotate(5deg); }
+        }
+      `}</style>
+    </div>
   );
 }
