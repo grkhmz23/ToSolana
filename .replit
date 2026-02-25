@@ -9,9 +9,10 @@ modules = ["nodejs-22"]
 channel = "stable-24_05"
 
 [deployment]
-run = ["sh", "-c", "pnpm run db:push && pnpm run start"]
+run = ["sh", "-c", "pnpm run db:push && pnpm run build && pnpm run start"]
 deploymentTarget = "cloudrun"
 publicDir = "public"
+build = ["sh", "-c", "pnpm install && pnpm run build"]
 
 [env]
 NODE_ENV = "production"
