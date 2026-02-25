@@ -32,8 +32,6 @@ async function getUpstashClient(): Promise<UpstashRedisClient | null> {
   
   try {
     // Dynamic import to avoid requiring the package when not used
-    // @ts-expect-error Optional dependency - package may not be installed
-    // eslint-disable-next-line import/no-unresolved
     const { Redis } = await import("@upstash/redis");
     upstashClient = new Redis({ url, token });
     upstashAvailable = true;
