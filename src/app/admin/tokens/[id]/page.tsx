@@ -1,8 +1,10 @@
 // Admin token detail/edit page
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import { adminFetch, clearAdminKey } from "@/lib/admin-client";
 
 interface Token {
   id: string;
@@ -27,11 +29,14 @@ interface Token {
 
 export default function TokenDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const tokenId = params.id as string;
 
   const [token, setToken] = useState<Token | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
@@ -39,51 +44,65 @@ export default function TokenDetailPage() {
   const [editForm, setEditForm] = useState<Partial<Token>>({});
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (tokenId) {
-      fetchToken();
-    }
-  }, [tokenId]);
-
-  const fetchToken = async () => {
+  const fetchToken = useCallback(async () => {
     try {
-      const adminKey = sessionStorage.getItem("adminKey");
-      const res = await fetch(`/api/admin/tokens/${tokenId}`, {
-        headers: { "x-admin-key": adminKey || "" },
-      });
+      setActionError(null);
+      const res = await adminFetch(`/api/admin/tokens/${tokenId}`);
 
-      if (!res.ok) throw new Error("Failed to fetch token");
+      if (!res.ok) {
+        if (res.status === 401) {
+          clearAdminKey();
+          setError("Invalid admin key. Please sign in again.");
+          router.replace("/admin");
+          return;
+        }
+        throw new Error("Failed to fetch token");
+      }
 
       const data = await res.json();
       if (data.ok) {
         setToken(data.data);
         setEditForm(data.data);
+        setActionSuccess(null);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setLoading(false);
     }
-  };
+  }, [router, tokenId]);
+
+  useEffect(() => {
+    if (tokenId) {
+      fetchToken();
+    }
+  }, [tokenId, fetchToken]);
 
   const handleVerify = async () => {
     setVerifying(true);
+    setActionError(null);
+    setActionSuccess(null);
     try {
-      const adminKey = sessionStorage.getItem("adminKey");
-      const res = await fetch(`/api/admin/tokens/${tokenId}/verify`, {
+      const res = await adminFetch(`/api/admin/tokens/${tokenId}/verify`, {
         method: "POST",
-        headers: { "x-admin-key": adminKey || "" },
       });
+
+      if (res.status === 401) {
+        clearAdminKey();
+        setError("Invalid admin key. Please sign in again.");
+        router.replace("/admin");
+        return;
+      }
 
       const data = await res.json();
       if (data.ok) {
-        alert(`Verification ${data.data.verified ? "successful" : "failed"}`);
+        setActionSuccess(`Verification ${data.data.verified ? "successful" : "failed"}`);
         fetchToken();
       } else {
-        alert(data.error?.message || "Verification failed");
+        setActionError(data.error?.message || "Verification failed");
       }
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Unknown error");
+      setActionError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setVerifying(false);
     }
@@ -91,25 +110,31 @@ export default function TokenDetailPage() {
 
   const handleStatusChange = async (newStatus: string) => {
     setUpdatingStatus(true);
+    setActionError(null);
+    setActionSuccess(null);
     try {
-      const adminKey = sessionStorage.getItem("adminKey");
-      const res = await fetch(`/api/admin/tokens/${tokenId}/status`, {
+      const res = await adminFetch(`/api/admin/tokens/${tokenId}/status`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-admin-key": adminKey || "",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
+
+      if (res.status === 401) {
+        clearAdminKey();
+        setError("Invalid admin key. Please sign in again.");
+        router.replace("/admin");
+        return;
+      }
 
       const data = await res.json();
       if (data.ok) {
         fetchToken();
+        setActionSuccess(`Status updated to ${newStatus}`);
       } else {
-        alert(data.error?.message || "Status update failed");
+        setActionError(data.error?.message || "Status update failed");
       }
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Unknown error");
+      setActionError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setUpdatingStatus(false);
     }
@@ -117,26 +142,31 @@ export default function TokenDetailPage() {
 
   const handleSave = async () => {
     setSaving(true);
+    setActionError(null);
+    setActionSuccess(null);
     try {
-      const adminKey = sessionStorage.getItem("adminKey");
-      const res = await fetch(`/api/admin/tokens/${tokenId}`, {
+      const res = await adminFetch(`/api/admin/tokens/${tokenId}`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          "x-admin-key": adminKey || "",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(editForm),
       });
+
+      if (res.status === 401) {
+        clearAdminKey();
+        setError("Invalid admin key. Please sign in again.");
+        router.replace("/admin");
+        return;
+      }
 
       const data = await res.json();
       if (data.ok) {
         fetchToken();
-        alert("Saved successfully");
+        setActionSuccess("Saved successfully");
       } else {
-        alert(data.error?.message || "Save failed");
+        setActionError(data.error?.message || "Save failed");
       }
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Unknown error");
+      setActionError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setSaving(false);
     }
@@ -169,6 +199,16 @@ export default function TokenDetailPage() {
 
   return (
     <div className="space-y-6">
+      {actionError && (
+        <div className="rounded border border-red-200 bg-red-50 px-4 py-3 text-red-700">
+          {actionError}
+        </div>
+      )}
+      {actionSuccess && (
+        <div className="rounded border border-green-200 bg-green-50 px-4 py-3 text-green-700">
+          {actionSuccess}
+        </div>
+      )}
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">{token.symbol}</h2>
@@ -178,9 +218,9 @@ export default function TokenDetailPage() {
           <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(token.status)}`}>
             {token.status}
           </span>
-          <a href="/admin/tokens" className="text-blue-600 hover:text-blue-800">
+          <Link href="/admin/tokens" className="text-blue-600 hover:text-blue-800">
             ← Back to list
-          </a>
+          </Link>
         </div>
       </div>
 

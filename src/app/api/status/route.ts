@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { statusQuerySchema } from "@/server/schema";
-import { getSession } from "@/server/sessions";
+import { reconcileSessionFinality } from "@/server/sessions";
 
 // Simple in-memory rate limiting
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
@@ -55,7 +55,7 @@ export async function GET(request: Request) {
       );
     }
 
-    const session = await getSession(parsed.data.sessionId);
+    const session = await reconcileSessionFinality(parsed.data.sessionId);
 
     if (!session) {
       return NextResponse.json({ error: "Session not found" }, { status: 404 });

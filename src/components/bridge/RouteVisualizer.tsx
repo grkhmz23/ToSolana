@@ -2,25 +2,20 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, Zap, AlertTriangle } from 'lucide-react';
-import { AnimatedNumber } from '@/components/ui/AnimatedNumber';
-import type { Route, Chain, Token } from '@/types/bridge';
+import type { Route, Chain } from '@/types/bridge';
 
 interface RouteVisualizerProps {
   isCalculating: boolean;
   routes: Route[];
   sourceChain: Chain;
   destChain: Chain;
-  destToken: Token;
-  amount: string;
 }
 
 export function RouteVisualizer({
   isCalculating,
   routes,
   sourceChain,
-  destChain,
-  destToken,
-  amount
+  destChain
 }: RouteVisualizerProps) {
   const bestRoute = routes.length > 0 ? routes[0] : null;
   const isHighImpact = bestRoute ? bestRoute.impact > 1.0 : false;

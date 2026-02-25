@@ -1,9 +1,16 @@
 import type { NextConfig } from "next";
 
+const replitDevDomain = process.env.REPLIT_DEV_DOMAIN?.replace(/^https?:\/\//, "").trim();
+const allowedDevOrigins = [
+  "http://localhost:5000",
+  "http://127.0.0.1:5000",
+  ...(replitDevDomain ? [`https://${replitDevDomain}`, `http://${replitDevDomain}`] : []),
+];
+
 const nextConfig: NextConfig = {
-  allowedDevOrigins: ["*"],
+  allowedDevOrigins,
   turbopack: {},
-  serverExternalPackages: ["pino-pretty", "lokijs", "encoding"],
+  serverExternalPackages: ["pino-pretty", "lokijs", "encoding", "viem"],
   transpilePackages: [
     "@rango-dev/widget-embedded",
     "@rango-dev/provider-all",
@@ -23,6 +30,10 @@ const nextConfig: NextConfig = {
       "./hmac": false,
       "./pbkdf2": false,
       "./sha512": false,
+      "@coinbase/wallet-sdk": false,
+      "@metamask/sdk": false,
+      porto: false,
+      "porto/internal": false,
     };
     return config;
   },

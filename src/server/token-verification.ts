@@ -2,7 +2,6 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 import { createPublicClient, http, erc20Abi } from "viem";
 import { mainnet } from "viem/chains";
-import { fetchWithTimeout } from "@/lib/fetch-utils";
 
 // Solana RPC
 const SOLANA_RPC = process.env.SOLANA_RPC_URL || process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
@@ -126,7 +125,7 @@ export async function verifySolanaMint(
     // ... etc
     
     const mintAuthorityOption = data[0];
-    const supply = BigInt(data.readUIntLE(33, 8));
+    const supply = data.readBigUInt64LE(33);
     const decimals = data[41];
 
     let mintAuthority: string | undefined;

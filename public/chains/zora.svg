@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <radialGradient id="zoraBg" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+      <stop offset="0%" style="stop-color:#a855f7"/>
+      <stop offset="70%" style="stop-color:#9333ea"/>
+      <stop offset="100%" style="stop-color:#7e22ce"/>
+    </radialGradient>
+    <linearGradient id="zoraZ" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff"/>
+      <stop offset="100%" style="stop-color:#e9d5ff"/>
+    </linearGradient>
+    <linearGradient id="zoraSparkle" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f0abfc"/>
+      <stop offset="100%" style="stop-color:#e879f9"/>
+    </linearGradient>
+    <filter id="zoraShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-opacity="0.4"/>
+    </filter>
+    <filter id="zoraGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+  
+  <!-- Background -->
+  <circle cx="128" cy="128" r="120" fill="url(#zoraBg)" filter="url(#zoraShadow)"/>
+  
+  <!-- Outer Ring -->
+  <circle cx="128" cy="128" r="110" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.2"/>
+  
+  <!-- Sparkles Background -->
+  <g opacity="0.3">
+    <path d="M80 60 L82 65 L87 67 L82 69 L80 74 L78 69 L73 67 L78 65 Z" fill="url(#zoraSparkle)"/>
+    <path d="M180 70 L182 75 L187 77 L182 79 L180 84 L178 79 L173 77 L178 75 Z" fill="url(#zoraSparkle)"/>
+    <path d="M70 170 L72 175 L77 177 L72 179 L70 184 L68 179 L63 177 L68 175 Z" fill="url(#zoraSparkle)"/>
+    <path d="M190 180 L192 185 L197 187 L192 189 L190 194 L188 189 L183 187 L188 185 Z" fill="url(#zoraSparkle)"/>
+  </g>
+  
+  <!-- 3D Z Letter -->
+  <g transform="translate(128, 128)">
+    <!-- Z Top Bar -->
+    <path d="M-50 -40 L50 -40 L40 -20 L-40 -20 Z" fill="url(#zoraZ)" filter="url(#zoraGlow)"/>
+    
+    <!-- Z Diagonal -->
+    <path d="M40 -20 L-50 40 L-40 20 L50 -40 Z" fill="url(#zoraZ)" filter="url(#zoraGlow)"/>
+    
+    <!-- Z Bottom Bar -->
+    <path d="M-50 40 L50 40 L40 20 L-40 20 Z" fill="url(#zoraZ)" filter="url(#zoraGlow)"/>
+    
+    <!-- 3D Depth - Right Side -->
+    <path d="M50 -40 L60 -30 L60 50 L50 40 Z" fill="#7e22ce" opacity="0.6"/>
+    <path d="M40 -20 L50 -10 L50 30 L40 20 Z" fill="#7e22ce" opacity="0.5"/>
+    
+    <!-- 3D Depth - Bottom -->
+    <path d="M-50 40 L50 40 L60 50 L-40 50 Z" fill="#9333ea" opacity="0.7"/>
+  </g>
+  
+  <!-- Central Gem -->
+  <circle cx="128" cy="128" r="8" fill="#f0abfc" filter="url(#zoraGlow)"/>
+</svg>

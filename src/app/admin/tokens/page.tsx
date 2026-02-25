@@ -1,7 +1,9 @@
 // Admin tokens list
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { adminFetch, clearAdminKey } from "@/lib/admin-client";
 
 interface Token {
   id: string;
@@ -17,9 +19,12 @@ interface Token {
 }
 
 export default function AdminTokensPage() {
+  const router = useRouter();
   const [tokens, setTokens] = useState<Token[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
 
   // Form state
@@ -32,47 +37,59 @@ export default function AdminTokensPage() {
   });
   const [creating, setCreating] = useState(false);
 
-  useEffect(() => {
-    fetchTokens();
-  }, []);
-
-  const fetchTokens = async () => {
+  const fetchTokens = useCallback(async () => {
     try {
-      const adminKey = sessionStorage.getItem("adminKey");
-      const res = await fetch("/api/admin/tokens", {
-        headers: { "x-admin-key": adminKey || "" },
-      });
+      setActionError(null);
+      const res = await adminFetch("/api/admin/tokens");
 
-      if (!res.ok) throw new Error("Failed to fetch tokens");
+      if (!res.ok) {
+        if (res.status === 401) {
+          clearAdminKey();
+          setError("Invalid admin key. Please sign in again.");
+          router.replace("/admin");
+          return;
+        }
+        throw new Error("Failed to fetch tokens");
+      }
 
       const data = await res.json();
       if (data.ok) {
         setTokens(data.data);
+        setActionSuccess(null);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setLoading(false);
     }
-  };
+  }, [router]);
+
+  useEffect(() => {
+    fetchTokens();
+  }, [fetchTokens]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setCreating(true);
+    setActionError(null);
+    setActionSuccess(null);
 
     try {
-      const adminKey = sessionStorage.getItem("adminKey");
-      const res = await fetch("/api/admin/tokens", {
+      const res = await adminFetch("/api/admin/tokens", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-admin-key": adminKey || "",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
           sourceChainId: parseInt(formData.sourceChainId),
         }),
       });
+
+      if (res.status === 401) {
+        clearAdminKey();
+        setError("Invalid admin key. Please sign in again.");
+        router.replace("/admin");
+        return;
+      }
 
       const data = await res.json();
       if (data.ok) {
@@ -85,11 +102,12 @@ export default function AdminTokensPage() {
           notes: "",
         });
         fetchTokens();
+        setActionSuccess("Token created successfully");
       } else {
-        alert(data.error?.message || "Failed to create token");
+        setActionError(data.error?.message || "Failed to create token");
       }
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Unknown error");
+      setActionError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setCreating(false);
     }
@@ -144,6 +162,16 @@ export default function AdminTokensPage() {
       {showCreateForm && (
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Add New Token</h3>
+          {actionError && (
+            <div className="mb-4 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {actionError}
+            </div>
+          )}
+          {actionSuccess && (
+            <div className="mb-4 rounded border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+              {actionSuccess}
+            </div>
+          )}
           <form onSubmit={handleCreate} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -221,6 +249,11 @@ export default function AdminTokensPage() {
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
           {error}
+        </div>
+      )}
+      {!showCreateForm && actionSuccess && (
+        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
+          {actionSuccess}
         </div>
       )}
 

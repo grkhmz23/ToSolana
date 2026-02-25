@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { SUPPORTED_CHAINS, SUPPORTED_NON_EVM_CHAINS, type NonEvmChain, isNonEvmChain, getChainType } from "@/lib/chains";
+import Image from "next/image";
+import { SUPPORTED_CHAINS, SUPPORTED_NON_EVM_CHAINS, type NonEvmChain } from "@/lib/chains";
 import type { Chain } from "wagmi/chains";
 
 interface ChainSelectorProps {
@@ -90,13 +91,13 @@ export function ChainSelector({
       >
         {selectedChainData ? (
           <>
-            <img
+            <Image
               src={CHAIN_ICONS[getChainIdentifier(selectedChainData)]}
               alt={getChainName(selectedChainData)}
+              width={24}
+              height={24}
               className="w-6 h-6 rounded-full"
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = "none";
-              }}
+              unoptimized
             />
             <span className="font-medium text-gray-900 truncate">
               {getChainName(selectedChainData)}
@@ -221,14 +222,13 @@ function ChainOption({ chain, isSelected, onSelect }: ChainOptionProps) {
       `}
     >
       {iconUrl ? (
-        <img
+        <Image
           src={iconUrl}
           alt={getChainName(chain)}
+          width={32}
+          height={32}
           className="w-8 h-8 rounded-full"
-          onError={(e) => {
-            (e.target as HTMLImageElement).src =
-              "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Crect width='32' height='32' fill='%23e5e7eb'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='12'%3E?%3C/text%3E%3C/svg%3E";
-          }}
+          unoptimized
         />
       ) : (
         <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-xs font-bold">

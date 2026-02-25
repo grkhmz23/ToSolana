@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import Image from "next/image";
 import { useQuery } from "@tanstack/react-query";
 import type { TokenInfo } from "@/lib/token-lists";
 import { searchTokens } from "@/lib/token-lists";
@@ -117,13 +118,13 @@ export function TokenSelector({
         className="flex w-full items-center gap-3 rounded-lg border border-[var(--card-border)] bg-[var(--card)] px-3 py-2 text-left transition-colors hover:border-[var(--primary)]/50"
       >
         {selectedTokenInfo?.logoURI ? (
-          <img
+          <Image
             src={selectedTokenInfo.logoURI}
             alt={selectedTokenInfo.symbol}
+            width={24}
+            height={24}
             className="h-6 w-6 rounded-full"
-            onError={(e) => {
-              (e.target as HTMLImageElement).style.display = "none";
-            }}
+            unoptimized
           />
         ) : (
           <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--primary)]/20 text-xs font-bold text-[var(--primary)]">
@@ -215,16 +216,13 @@ export function TokenSelector({
                     }`}
                   >
                     {token.logoURI ? (
-                      <img
+                      <Image
                         src={token.logoURI}
                         alt={token.symbol}
+                        width={32}
+                        height={32}
                         className="h-8 w-8 rounded-full"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).style.display = "none";
-                          (e.target as HTMLImageElement).nextElementSibling?.classList.remove(
-                            "hidden",
-                          );
-                        }}
+                        unoptimized
                       />
                     ) : null}
                     <div
@@ -454,13 +452,13 @@ export function SolanaTokenSelector({
         className="flex w-full items-center gap-3 rounded-lg border border-[var(--card-border)] bg-[var(--card)] px-3 py-2 text-left transition-colors hover:border-[var(--primary)]/50"
       >
         {selectedTokenInfo?.logoURI ? (
-          <img
+          <Image
             src={selectedTokenInfo.logoURI}
             alt={selectedTokenInfo.symbol}
+            width={24}
+            height={24}
             className="h-6 w-6 rounded-full"
-            onError={(e) => {
-              (e.target as HTMLImageElement).style.display = "none";
-            }}
+            unoptimized
           />
         ) : (
           <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--primary)]/20 text-xs font-bold text-[var(--primary)]">
@@ -545,16 +543,13 @@ export function SolanaTokenSelector({
                     }`}
                   >
                     {token.logoURI ? (
-                      <img
+                      <Image
                         src={token.logoURI}
                         alt={token.symbol}
+                        width={32}
+                        height={32}
                         className="h-8 w-8 rounded-full"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).style.display = "none";
-                          (e.target as HTMLImageElement).nextElementSibling?.classList.remove(
-                            "hidden",
-                          );
-                        }}
+                        unoptimized
                       />
                     ) : null}
                     <div

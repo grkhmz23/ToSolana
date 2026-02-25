@@ -3,8 +3,9 @@
 import type { NormalizedRoute } from "@/server/schema";
 import { formatDuration } from "@/lib/format";
 import { useTokenPrices, formatUsd, calculateUsdValue } from "@/hooks/useTokenPrices";
+import { fetchTokenList, getTokenSymbolFromList } from "@/lib/token-lists";
 import { useGasPrice, getGasPriceColor, getGasTrendProps } from "@/hooks/useGasEstimation";
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
 
 interface RoutesListProps {
   routes: NormalizedRoute[];
@@ -12,9 +13,34 @@ interface RoutesListProps {
   selectedRouteId: string | null;
   onSelectRoute: (route: NormalizedRoute) => void;
   sourceChainId: number | string;
+  recommendedRouteId?: string | null;
 }
 
-export function RoutesList({ routes, errors, selectedRouteId, onSelectRoute, sourceChainId }: RoutesListProps) {
+export function RoutesList({
+  routes,
+  errors,
+  selectedRouteId,
+  onSelectRoute,
+  sourceChainId,
+  recommendedRouteId,
+}: RoutesListProps) {
+  const [providerStats, setProviderStats] = useState<Record<string, { successRate: number }>>({});
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/providers/stats")
+      .then((res) => res.ok ? res.json() : null)
+      .then((json) => {
+        if (!json || !json.ok || cancelled) return;
+        setProviderStats(json.data ?? {});
+      })
+      .catch(() => {
+        // Ignore stats failures; UI should still work
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   if (routes.length === 0 && (!errors || errors.length === 0)) {
     return null;
   }
@@ -48,6 +74,8 @@ export function RoutesList({ routes, errors, selectedRouteId, onSelectRoute, sou
             isSelected={selectedRouteId === route.routeId}
             onSelect={() => onSelectRoute(route)}
             sourceChainId={sourceChainId}
+            isRecommended={recommendedRouteId === route.routeId}
+            providerStats={providerStats}
           />
         ))}
       </div>
@@ -60,9 +88,18 @@ interface RouteCardProps {
   isSelected: boolean;
   onSelect: () => void;
   sourceChainId: number | string;
+  isRecommended: boolean;
+  providerStats: Record<string, { successRate: number }>;
 }
 
-function RouteCard({ route, isSelected, onSelect, sourceChainId }: RouteCardProps & { sourceChainId: number | string }) {
+function RouteCard({
+  route,
+  isSelected,
+  onSelect,
+  sourceChainId,
+  isRecommended,
+  providerStats,
+}: RouteCardProps & { sourceChainId: number | string }) {
   // Fetch SOL price for USD calculation
   const { data: solPriceData } = useTokenPrices([
     { chainId: 1151111081099710, address: "11111111111111111111111111111111" }, // Solana native
@@ -75,10 +112,8 @@ function RouteCard({ route, isSelected, onSelect, sourceChainId }: RouteCardProp
   const outputUsdValue = useMemo(() => {
     if (!solPriceData?.prices[0]?.priceUsd) return null;
     const solPrice = solPriceData.prices[0].priceUsd;
-    
-    // For SOL output, use 9 decimals
-    const decimals = route.estimatedOutput.token === "SOL" ? 9 : 6;
-    return calculateUsdValue(route.estimatedOutput.amount, decimals, solPrice);
+    if (route.estimatedOutput.token !== "SOL") return null;
+    return calculateUsdValue(route.estimatedOutput.amount, 9, solPrice);
   }, [solPriceData, route.estimatedOutput]);
 
   // Gas price indicator
@@ -89,6 +124,40 @@ function RouteCard({ route, isSelected, onSelect, sourceChainId }: RouteCardProp
 
   const gasTrendProps = gasTrend ? getGasTrendProps(gasTrend) : null;
 
+  const [solanaSymbol, setSolanaSymbol] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    if (!route.estimatedOutput.token || route.estimatedOutput.token === "SOL") {
+      Promise.resolve().then(() => {
+        if (!cancelled) setSolanaSymbol(null);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }
+    fetchTokenList(101)
+      .then((tokens) => {
+        if (cancelled) return;
+        setSolanaSymbol(getTokenSymbolFromList(tokens, route.estimatedOutput.token));
+      })
+      .catch(() => {
+        if (!cancelled) setSolanaSymbol(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [route.estimatedOutput.token]);
+
+  const providerKey = route.provider.toLowerCase();
+  const providerStat =
+    providerStats[providerKey] ??
+    providerStats[route.provider] ??
+    null;
+  const reliability =
+    providerStat && typeof providerStat.successRate === "number"
+      ? `${providerStat.successRate.toFixed(1)}%`
+      : null;
+
   return (
     <button
       onClick={onSelect}
@@ -98,7 +167,78 @@ function RouteCard({ route, isSelected, onSelect, sourceChainId }: RouteCardProp
           : "border-[var(--card-border)] bg-[var(--card)] hover:border-[var(--primary)]/50"
       }`}
     >
-      <div className="flex items-start justify-between">
+      <div className="md:hidden">
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              {route.action ? (
+                <span className="rounded bg-green-500/20 px-2 py-0.5 text-[10px] font-semibold text-green-500">
+                  OFFICIAL 1:1
+                </span>
+              ) : (
+                <span className="rounded bg-[var(--primary)]/20 px-2 py-0.5 text-[10px] font-semibold text-[var(--primary)]">
+                  {route.provider.toUpperCase()}
+                </span>
+              )}
+              {isRecommended && (
+                <span className="rounded bg-amber-400/20 px-2 py-0.5 text-[10px] font-semibold text-amber-300">
+                  RECOMMENDED
+                </span>
+              )}
+              {route.steps.some((s) => s.provider === "jupiter") && (
+                <span className="rounded bg-purple-500/20 px-2 py-0.5 text-[10px] font-semibold text-purple-400">
+                  + JUPITER
+                </span>
+              )}
+              <span className="text-[10px] text-[var(--muted)]">
+                {route.steps.length} step{route.steps.length !== 1 ? "s" : ""}
+              </span>
+              {route.etaSeconds && (
+                <span className="text-[10px] text-[var(--muted)]">
+                  ~{formatDuration(route.etaSeconds)}
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold text-[var(--foreground)]">
+                  {formatTokenAmount(route.estimatedOutput.amount)} {solanaSymbol ?? route.estimatedOutput.token}
+                </div>
+                {outputUsdValue !== null && (
+                  <div className="text-xs text-[var(--accent)]">
+                    ≈ {formatUsd(outputUsdValue)}
+                  </div>
+                )}
+              </div>
+              {reliability && (
+                <div className="rounded bg-[var(--card-border)]/40 px-2 py-1 text-[10px] font-medium text-[var(--muted)]">
+                  Reliability {reliability}
+                </div>
+              )}
+            </div>
+
+            {(route.fees.length > 0 || (gasPriceData && isEvmChain)) && (
+              <div className="mt-2 space-y-1">
+                {route.fees.length > 0 && (
+                  <div className="text-[10px] text-[var(--muted)]">
+                    Fees: {route.fees.map((f) => `${f.amount} ${f.token}`).join(", ")}
+                  </div>
+                )}
+                {gasPriceData && isEvmChain && (
+                  <div className="text-[10px] text-[var(--muted)]">
+                    Gas: {formatGasDisplay(gasPriceData.gasPrice, sourceChainId as number)}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <SelectedIndicator isSelected={isSelected} />
+        </div>
+      </div>
+
+      <div className="hidden md:flex items-start justify-between">
         <div className="flex-1">
           <div className="mb-1 flex flex-wrap items-center gap-2">
             {route.action ? (
@@ -108,6 +248,16 @@ function RouteCard({ route, isSelected, onSelect, sourceChainId }: RouteCardProp
             ) : (
               <span className="rounded bg-[var(--primary)]/20 px-2 py-0.5 text-xs font-medium text-[var(--primary)]">
                 {route.provider.toUpperCase()}
+              </span>
+            )}
+            {isRecommended && (
+              <span className="rounded bg-amber-400/20 px-2 py-0.5 text-xs font-semibold text-amber-300">
+                RECOMMENDED
+              </span>
+            )}
+            {route.steps.some((s) => s.provider === "jupiter") && (
+              <span className="rounded bg-purple-500/20 px-2 py-0.5 text-xs font-medium text-purple-400">
+                + JUPITER
               </span>
             )}
             <span className="text-xs text-[var(--muted)]">
@@ -129,11 +279,16 @@ function RouteCard({ route, isSelected, onSelect, sourceChainId }: RouteCardProp
                 Gas: {gasTrendProps.label}
               </span>
             )}
+            {reliability && (
+              <span className="rounded bg-[var(--card-border)]/40 px-1.5 py-0.5 text-xs font-medium text-[var(--muted)]">
+                Reliability {reliability}
+              </span>
+            )}
           </div>
 
           <div className="mb-2">
             <div className="text-sm font-medium text-[var(--foreground)]">
-              Receive: {formatTokenAmount(route.estimatedOutput.amount)} {route.estimatedOutput.token}
+              Receive: {formatTokenAmount(route.estimatedOutput.amount)} {solanaSymbol ?? route.estimatedOutput.token}
             </div>
             {outputUsdValue !== null && (
               <div className="text-xs text-[var(--accent)]">
@@ -190,29 +345,35 @@ function RouteCard({ route, isSelected, onSelect, sourceChainId }: RouteCardProp
         </div>
 
         {/* Selected indicator */}
-        <div
-          className={`ml-3 h-5 w-5 shrink-0 rounded-full border-2 ${
-            isSelected
-              ? "border-[var(--primary)] bg-[var(--primary)]"
-              : "border-[var(--card-border)]"
-          }`}
-        >
-          {isSelected && (
-            <svg
-              viewBox="0 0 20 20"
-              fill="white"
-              className="h-full w-full p-0.5"
-            >
-              <path
-                fillRule="evenodd"
-                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                clipRule="evenodd"
-              />
-            </svg>
-          )}
-        </div>
+        <SelectedIndicator isSelected={isSelected} />
       </div>
     </button>
+  );
+}
+
+function SelectedIndicator({ isSelected }: { isSelected: boolean }) {
+  return (
+    <div
+      className={`ml-3 h-5 w-5 shrink-0 rounded-full border-2 ${
+        isSelected
+          ? "border-[var(--primary)] bg-[var(--primary)]"
+          : "border-[var(--card-border)]"
+      }`}
+    >
+      {isSelected && (
+        <svg
+          viewBox="0 0 20 20"
+          fill="white"
+          className="h-full w-full p-0.5"
+        >
+          <path
+            fillRule="evenodd"
+            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+            clipRule="evenodd"
+          />
+        </svg>
+      )}
+    </div>
   );
 }
 

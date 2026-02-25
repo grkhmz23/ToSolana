@@ -100,17 +100,15 @@ export function BitcoinTransactionSigner({
         success("Transaction signed", `Hash: ${hash.slice(0, 16)}...`);
         onSuccess(hash);
       } else {
-        // PSBT signing flow
+        // PSBT signing flow (requires wallet broadcast support)
         if (!txRequest.psbtBase64) {
           throw new Error("No PSBT data provided");
         }
 
-        // Sign the PSBT using Xverse
         const signedPsbt = await signPsbtWithXverse(txRequest.psbtBase64);
-        
-        // Broadcast the signed transaction
-        const hash = await broadcastBitcoinTx(signedPsbt);
-        
+
+        const hash = await broadcastSignedPsbt(signedPsbt);
+
         setTxHash(hash);
         success("Transaction broadcast", `Hash: ${hash.slice(0, 16)}...`);
         onSuccess(hash);
@@ -122,7 +120,7 @@ export function BitcoinTransactionSigner({
     } finally {
       setIsSigning(false);
     }
-  }, [wallet, details, txRequest, onSuccess, onError, showError]);
+  }, [wallet, details, txRequest, onSuccess, onError, showError, success]);
 
   if (txHash) {
     return (
@@ -183,7 +181,7 @@ export function BitcoinTransactionSigner({
 
         {!details.toAddress && txRequest.psbtBase64 && (
           <p className="text-sm text-orange-700">
-            You have a PSBT to sign. This will authorize the Bitcoin transaction.
+            You have a PSBT to sign. Your wallet must support broadcasting the signed transaction.
           </p>
         )}
 
@@ -244,20 +242,19 @@ async function signPsbtWithXverse(psbtBase64: string): Promise<string> {
   return result.psbt;
 }
 
-// Helper to broadcast Bitcoin transaction
-async function broadcastBitcoinTx(signedPsbt: string): Promise<string> {
-  // In production, you'd broadcast via a Bitcoin node or API like Blockstream
-  // For now, this is a placeholder
-  const response = await fetch("https://blockstream.info/api/tx", {
-    method: "POST",
-    headers: { "Content-Type": "text/plain" },
-    body: signedPsbt,
-  });
+// Helper to broadcast Bitcoin PSBT (wallet must support pushTx or sendBitcoin)
+async function broadcastSignedPsbt(signedPsbt: string): Promise<string> {
+  const bitcoin = (window as unknown as {
+    bitcoin?: {
+      pushTx?: (psbt: string) => Promise<string>;
+    };
+  }).bitcoin;
 
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Broadcast failed: ${error}`);
+  if (!bitcoin?.pushTx) {
+    throw new Error(
+      "Your wallet does not support broadcasting PSBTs. Use a wallet that can send BTC directly or supports pushTx."
+    );
   }
 
-  return response.text(); // Returns tx hash
+  return bitcoin.pushTx(signedPsbt);
 }

@@ -1,36 +1,39 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useAccount } from "wagmi";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { HistoryList } from "@/components/HistoryList";
-import { TokenAmountForm, type FormValues } from "@/components/TokenAmountForm";
-import { RoutesList } from "@/components/RoutesList";
-import { ProgressTracker } from "@/components/ProgressTracker";
-import { RouteFilters } from "@/components/RouteFilters";
+import type { FormValues } from "@/components/TokenAmountForm";
+import type { HistoryItem } from "@/components/HistoryList";
 import type { NormalizedRoute } from "@/server/schema";
+
+const HistoryList = dynamic(
+  () => import("@/components/HistoryList").then((mod) => mod.HistoryList),
+  { ssr: false },
+);
+const TokenAmountForm = dynamic(
+  () => import("@/components/TokenAmountForm").then((mod) => mod.TokenAmountForm),
+  { ssr: false },
+);
+const RoutesList = dynamic(
+  () => import("@/components/RoutesList").then((mod) => mod.RoutesList),
+  { ssr: false },
+);
+const ProgressTracker = dynamic(
+  () => import("@/components/ProgressTracker").then((mod) => mod.ProgressTracker),
+  { ssr: false },
+);
+const RouteFilters = dynamic(
+  () => import("@/components/RouteFilters").then((mod) => mod.RouteFilters),
+  { ssr: false },
+);
 
 // Extended form values for re-execution
 interface TransferFormState extends FormValues {
   sourceAddress?: string;
   solanaAddress?: string;
-}
-
-interface HistoryItem {
-  id: string;
-  source: {
-    chainId: number;
-    address: string;
-    token: string;
-    amount: string;
-  };
-  destination: {
-    address: string;
-    token: string;
-    estimatedOutput: string;
-  };
-  provider: string;
 }
 
 export default function HistoryPage() {
@@ -47,12 +50,20 @@ export default function HistoryPage() {
   const [formState, setFormState] = useState<TransferFormState | null>(null);
 
   const handleReExecute = useCallback((item: HistoryItem) => {
+    const maybeEvmAddress = /^0x[a-fA-F0-9]{40}$/.test(item.source.token)
+      ? item.source.token
+      : undefined;
+    const maybeSolanaMint = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(item.destination.token)
+      ? item.destination.token
+      : undefined;
+
     // Pre-fill the form with the historical transfer details
     setFormState({
       sourceChainId: item.source.chainId,
-      sourceToken: item.source.token,
+      ...(maybeEvmAddress ? { sourceToken: maybeEvmAddress } : {}),
       sourceAmount: item.source.amount,
-      destToken: item.destination.token,
+      sourceAmountDisplay: item.source.amount,
+      destToken: maybeSolanaMint ?? "SOL",
       sourceAddress: item.source.address,
       solanaAddress: item.destination.address,
       slippage: 3, // Default slippage for re-execution
@@ -112,12 +123,6 @@ export default function HistoryPage() {
         >
           Pro Mode
         </Link>
-        <Link
-          href="/universal"
-          className="rounded-lg border border-[var(--card-border)] px-4 py-2 text-sm text-[var(--muted)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition-colors"
-        >
-          Universal
-        </Link>
         <span className="rounded-lg border border-[var(--primary)] bg-[var(--primary)]/10 px-4 py-2 text-sm font-medium text-[var(--primary)]">
           History
         </span>
@@ -165,6 +170,7 @@ export default function HistoryPage() {
                   setIsTransferring(false);
                 }}
                 sourceChainId={formState.sourceChainId}
+                recommendedRouteId={displayedRoutes[0]?.routeId ?? null}
               />
 
               {currentSelectedRoute && !isTransferring && (
@@ -179,20 +185,28 @@ export default function HistoryPage() {
           )}
 
           {/* Execution */}
-          {currentSelectedRoute && isTransferring && evmAddress && publicKey && (
+          {currentSelectedRoute && isTransferring && (
             <section className="rounded-xl border border-[var(--card-border)] bg-[var(--card)] p-5">
               <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-[var(--muted)]">
                 Transfer Progress
               </h3>
-              <ProgressTracker
-                route={currentSelectedRoute}
-                sourceAddress={evmAddress}
-                solanaAddress={publicKey.toBase58()}
-                sourceChainId={formState.sourceChainId}
-                sourceToken={formState.sourceToken}
-                sourceAmount={formState.sourceAmount}
-                destToken={formState.destToken}
-              />
+              {evmAddress && publicKey && formState.sourceToken ? (
+                <ProgressTracker
+                  route={currentSelectedRoute}
+                  sourceAddress={evmAddress}
+                  solanaAddress={publicKey.toBase58()}
+                  sourceChainId={formState.sourceChainId}
+                  sourceToken={formState.sourceToken}
+                  sourceAmount={formState.sourceAmount}
+                  sourceAmountDisplay={formState.sourceAmountDisplay}
+                  destToken={formState.destToken}
+                  slippage={formState.slippage}
+                />
+              ) : (
+                <div className="rounded-lg border border-[var(--warning)] bg-[var(--warning)]/10 p-3 text-sm text-[var(--warning)]">
+                  Connect your EVM and Solana wallets and select a source token to execute this transfer.
+                </div>
+              )}
             </section>
           )}
         </div>

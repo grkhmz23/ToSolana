@@ -2,12 +2,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withAdminAuth } from "@/server/admin-auth";
 import { prisma, updateProjectToken, createVerificationLog } from "@/server/db";
-import { verifyToken } from "@/server/token-verification";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+type RouteContext = {
+  params?: Promise<{ id: string }> | { id: string };
+};
+
+async function getRouteId(context?: RouteContext): Promise<string | null> {
+  if (!context?.params) {
+    return null;
+  }
+  const resolved = await context.params;
+  return typeof resolved?.id === "string" && resolved.id.length > 0 ? resolved.id : null;
+}
 
 // POST /api/admin/tokens/[id]/verify
-export const POST = withAdminAuth(async (request: NextRequest, { params }: { params: { id: string } }) => {
+export const POST = withAdminAuth(async (request: NextRequest, context?: RouteContext) => {
   try {
-    const { id } = params;
+    const id = await getRouteId(context);
+    if (!id) {
+      return NextResponse.json(
+        { ok: false, error: { code: "VALIDATION_ERROR", message: "Missing token id" } },
+        { status: 400 }
+      );
+    }
 
     const token = await prisma.projectToken.findUnique({
       where: { id },
@@ -21,6 +41,7 @@ export const POST = withAdminAuth(async (request: NextRequest, { params }: { par
     }
 
     // Run verification
+    const { verifyToken } = await import("@/server/token-verification");
     const result = await verifyToken({
       sourceChainId: token.sourceChainId,
       sourceTokenAddress: token.sourceTokenAddress,
@@ -49,6 +70,10 @@ export const POST = withAdminAuth(async (request: NextRequest, { params }: { par
       if (Object.keys(updates).length > 0) {
         await updateProjectToken(id, updates);
       }
+    }
+
+    if (result.ok) {
+      await updateProjectToken(id, { verifiedAt: new Date() });
     }
 
     return NextResponse.json({

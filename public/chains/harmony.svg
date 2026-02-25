@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <radialGradient id="oneBg" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+      <stop offset="0%" style="stop-color:#00aee9"/>
+      <stop offset="70%" style="stop-color:#0095c7"/>
+      <stop offset="100%" style="stop-color:#007aa3"/>
+    </radialGradient>
+    <linearGradient id="oneLetter" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff"/>
+      <stop offset="100%" style="stop-color:#c2ecfa"/>
+    </linearGradient>
+    <filter id="oneShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-opacity="0.4"/>
+    </filter>
+    <filter id="oneGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+  
+  <!-- Background -->
+  <circle cx="128" cy="128" r="120" fill="url(#oneBg)" filter="url(#oneShadow)"/>
+  
+  <!-- Outer Ring -->
+  <circle cx="128" cy="128" r="110" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.2"/>
+  
+  <!-- ONE Lettermark -->
+  <g transform="translate(128, 128)">
+    <!-- Vertical Bar -->
+    <rect x="-12" y="-55" width="24" height="110" rx="3" fill="url(#oneLetter)" filter="url(#oneGlow)"/>
+    
+    <!-- Top Serif -->
+    <rect x="-35" y="-55" width="58" height="20" rx="3" fill="url(#oneLetter)" filter="url(#oneGlow)"/>
+    
+    <!-- Bottom Base -->
+    <rect x="-35" y="35" width="70" height="20" rx="3" fill="url(#oneLetter)" filter="url(#oneGlow)"/>
+    
+    <!-- Inner Detail Lines -->
+    <line x1="0" y1="-35" x2="0" y2="35" stroke="#00aee9" stroke-width="2" opacity="0.3"/>
+  </g>
+  
+  <!-- Decorative Circles -->
+  <circle cx="75" cy="75" r="5" fill="#ffffff" opacity="0.3"/>
+  <circle cx="181" cy="75" r="5" fill="#ffffff" opacity="0.3"/>
+  <circle cx="75" cy="181" r="5" fill="#ffffff" opacity="0.3"/>
+  <circle cx="181" cy="181" r="5" fill="#ffffff" opacity="0.3"/>
+  
+  <!-- Connection Lines -->
+  <g stroke="#ffffff" stroke-width="1" opacity="0.15">
+    <line x1="75" y1="75" x2="128" y2="73"/>
+    <line x1="181" y1="75" x2="128" y2="73"/>
+    <line x1="75" y1="181" x2="128" y2="183"/>
+    <line x1="181" y1="181" x2="128" y2="183"/>
+  </g>
+</svg>

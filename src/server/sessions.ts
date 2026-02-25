@@ -1,5 +1,5 @@
 import { prisma } from "./db";
-import type { CreateSessionRequest, StepStatus } from "./schema";
+import type { ChainType, CreateSessionRequest, StepStatus } from "./schema";
 
 // ---- History queries ----
 
@@ -48,7 +48,10 @@ export async function createSession(req: CreateSessionRequest) {
       provider: req.provider,
       routeId: req.routeId,
       status: "quoted",
-      selectedRouteJson: JSON.stringify(req.route),
+      selectedRouteJson: JSON.stringify({
+        route: req.route,
+        executionContext: req.executionContext,
+      }),
       currentStep: 0,
       // History fields
       sourceChainId: String(req.sourceChainId),
@@ -75,6 +78,90 @@ export async function getSession(sessionId: string) {
     where: { id: sessionId },
     include: { steps: { orderBy: { index: "asc" } } },
   });
+}
+
+type ParsedStepMeta = {
+  chainType?: ChainType;
+  chainId?: number | string;
+};
+
+function parseStepMeta(metaJson: string | null): ParsedStepMeta {
+  if (!metaJson) return {};
+  try {
+    const parsed = JSON.parse(metaJson) as unknown;
+    if (!parsed || typeof parsed !== "object") return {};
+    const candidate = parsed as { chainType?: unknown; chainId?: unknown };
+    return {
+      chainType:
+        candidate.chainType === "evm" ||
+        candidate.chainType === "solana" ||
+        candidate.chainType === "bitcoin" ||
+        candidate.chainType === "cosmos" ||
+        candidate.chainType === "ton"
+          ? candidate.chainType
+          : undefined,
+      chainId:
+        typeof candidate.chainId === "number" || typeof candidate.chainId === "string"
+          ? candidate.chainId
+          : undefined,
+    };
+  } catch {
+    return {};
+  }
+}
+
+function isServerConfirmableChainType(chainType: string): chainType is "evm" | "solana" {
+  return chainType === "evm" || chainType === "solana";
+}
+
+export async function reconcileSessionFinality(sessionId: string) {
+  const session = await getSession(sessionId);
+  if (!session) return null;
+
+  if (session.status === "completed" || session.status === "failed") {
+    return session;
+  }
+
+  const pendingSubmittedSteps = session.steps.filter(
+    (step) => step.status === "submitted" && !!step.txHashOrSig,
+  );
+
+  if (pendingSubmittedSteps.length === 0) {
+    return session;
+  }
+
+  const { verifyTxFinality } = await import("@/server/tx-finality");
+  let changed = false;
+
+  for (const step of pendingSubmittedSteps) {
+    if (!step.txHashOrSig) continue;
+
+    const meta = parseStepMeta(step.metaJson);
+    const chainType = (meta.chainType ?? step.chainType) as string;
+    if (!isServerConfirmableChainType(chainType)) {
+      continue;
+    }
+
+    const verification = await verifyTxFinality({
+      chainType,
+      chainId: meta.chainId,
+      txHashOrSig: step.txHashOrSig,
+      expectedEvmSender: chainType === "evm" ? session.sourceAddress : undefined,
+    });
+
+    if (!verification.ok) {
+      continue;
+    }
+
+    await updateStepStatus(session.id, step.index, "confirmed", step.txHashOrSig);
+    changed = true;
+  }
+
+  if (!changed) {
+    return session;
+  }
+
+  return getSession(sessionId);
 }
 
 export async function updateSessionStatus(sessionId: string, status: StepStatus, error?: string) {

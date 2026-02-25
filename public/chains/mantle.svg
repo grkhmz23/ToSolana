@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <radialGradient id="mantleBg" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+      <stop offset="0%" style="stop-color:#1a1a2e"/>
+      <stop offset="70%" style="stop-color:#0f0f1a"/>
+      <stop offset="100%" style="stop-color:#050510"/>
+    </radialGradient>
+    <linearGradient id="mantleRing" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00d4ff"/>
+      <stop offset="50%" style="stop-color:#0099cc"/>
+      <stop offset="100%" style="stop-color:#006699"/>
+    </linearGradient>
+    <filter id="mantleShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-opacity="0.5"/>
+    </filter>
+    <filter id="mantleGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+  
+  <!-- Background -->
+  <circle cx="128" cy="128" r="120" fill="url(#mantleBg)" filter="url(#mantleShadow)"/>
+  
+  <!-- Outer Ring -->
+  <circle cx="128" cy="128" r="110" fill="none" stroke="url(#mantleRing)" stroke-width="2" opacity="0.3"/>
+  
+  <!-- Orbiting Rings System -->
+  <g transform="translate(128, 128)">
+    <!-- Ring 1 - Main -->
+    <ellipse cx="0" cy="0" rx="70" ry="35" fill="none" stroke="url(#mantleRing)" stroke-width="5" 
+             transform="rotate(-20)" filter="url(#mantleGlow)" stroke-linecap="round"/>
+    
+    <!-- Ring 2 -->
+    <ellipse cx="0" cy="0" rx="70" ry="35" fill="none" stroke="url(#mantleRing)" stroke-width="4" 
+             transform="rotate(40)" opacity="0.7" stroke-linecap="round"/>
+    
+    <!-- Ring 3 -->
+    <ellipse cx="0" cy="0" rx="70" ry="35" fill="none" stroke="url(#mantleRing)" stroke-width="3" 
+             transform="rotate(100)" opacity="0.5" stroke-linecap="round"/>
+    
+    <!-- Ring 4 (background) -->
+    <ellipse cx="0" cy="0" rx="70" ry="35" fill="none" stroke="#006699" stroke-width="2" 
+             transform="rotate(160)" opacity="0.3" stroke-linecap="round"/>
+  </g>
+  
+  <!-- Central Core -->
+  <circle cx="128" cy="128" r="20" fill="#00d4ff" filter="url(#mantleGlow)"/>
+  <circle cx="128" cy="128" r="12" fill="#1a1a2e"/>
+  <circle cx="128" cy="128" r="6" fill="#00d4ff"/>
+  
+  <!-- Particle Dots on Rings -->
+  <circle cx="180" cy="90" r="4" fill="#00d4ff" opacity="0.8"/>
+  <circle cx="76" cy="166" r="4" fill="#00d4ff" opacity="0.6"/>
+  <circle cx="180" cy="166" r="3" fill="#00d4ff" opacity="0.5"/>
+  
+  <!-- Glow Effect -->
+  <circle cx="128" cy="128" r="90" fill="none" stroke="#00d4ff" stroke-width="1" opacity="0.1"/>
+</svg>

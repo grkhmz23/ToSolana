@@ -8,78 +8,132 @@ datasource db {
 }
 
 model QuoteSession {
-  id               String   @id @default(cuid())
-  createdAt        DateTime @default(now())
-  completedAt      DateTime?
-  sourceAddress    String
-  solanaAddress    String
-  provider         String
-  routeId          String
-  status           String   @default("idle")
+  id                String    @id @default(cuid())
+  createdAt         DateTime  @default(now())
+  completedAt       DateTime?
+  sourceAddress     String
+  solanaAddress     String
+  provider          String
+  routeId           String
+  status            String    @default("idle")
   selectedRouteJson String
-  currentStep      Int      @default(0)
-  errorMessage     String?
-  
-  // For history - store key transfer details
-  sourceChainId    String
-  sourceToken      String
-  sourceAmount     String
-  destToken        String
-  estimatedOutput  String
-  
-  steps            Step[]
+  currentStep       Int       @default(0)
+  errorMessage      String?
+  sourceChainId     String
+  sourceToken       String
+  sourceAmount      String
+  destToken         String
+  estimatedOutput   String
+  steps             Step[]
 }
 
 model Step {
-  id           String       @id @default(cuid())
-  sessionId    String
-  index        Int
-  chainType    String
-  status       String       @default("idle")
-  txHashOrSig  String?
-  metaJson     String?
-  session      QuoteSession @relation(fields: [sessionId], references: [id])
+  id          String       @id @default(cuid())
+  sessionId   String
+  index       Int
+  chainType   String
+  status      String       @default("idle")
+  txHashOrSig String?
+  metaJson    String?
+  session     QuoteSession @relation(fields: [sessionId], references: [id])
 
   @@unique([sessionId, index])
 }
 
-// Project Token Registry for Official 1:1 Bridges
 model ProjectToken {
-  id                    String   @id @default(cuid())
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-  
-  sourceChainType       String   @default("evm") // "evm" for future-proofing
-  sourceChainId         Int      // Ethereum=1, etc.
-  sourceTokenAddress    String   // Lowercased ERC20 address
-  
-  name                  String
-  symbol                String
-  decimals              Int
-  
-  solanaMint            String   // Base58 SPL mint address
-  
-  mode                  String   // "WRAPPED" | "NTT" | "OFT"
-  status                String   @default("DRAFT") // "DRAFT" | "ACTIVE" | "DISABLED"
-  
-  providerConfig        String?  @default("{}") // JSON string for config
-  
-  verifiedAt            DateTime?
-  notes                 String?
-  
-  verificationLogs      TokenVerificationLog[]
-  
+  id                 String                 @id @default(cuid())
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  sourceChainType    String                 @default("evm")
+  sourceChainId      Int
+  sourceTokenAddress String
+  name               String
+  symbol             String
+  decimals           Int
+  solanaMint         String
+  mode               String
+  status             String                 @default("DRAFT")
+  providerConfig     String?                @default("{}")
+  verifiedAt         DateTime?
+  notes              String?
+  verificationLogs   TokenVerificationLog[]
+
   @@unique([sourceChainId, sourceTokenAddress])
   @@index([status, symbol])
 }
 
 model TokenVerificationLog {
-  id              String   @id @default(cuid())
-  createdAt       DateTime @default(now())
-  
-  projectTokenId  String
-  projectToken    ProjectToken @relation(fields: [projectTokenId], references: [id])
-  
-  ok              Boolean
-  details         String   @default("{}") // JSON string for verification details
+  id             String       @id @default(cuid())
+  createdAt      DateTime     @default(now())
+  projectTokenId String
+  ok             Boolean
+  details        String       @default("{}")
+  projectToken   ProjectToken @relation(fields: [projectTokenId], references: [id])
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  ownerWallet String
+  createdAt   DateTime @default(now())
+  tokens      Token[]
+  campaigns   MigrationCampaign[]
+}
+
+model Token {
+  id                 String   @id @default(cuid())
+  projectId          String
+  sourceChainId      Int
+  sourceTokenAddress String
+  symbol             String
+  decimals           Int
+  totalSupply        String
+  createdAt          DateTime @default(now())
+  project            Project  @relation(fields: [projectId], references: [id])
+  campaigns          MigrationCampaign[]
+
+  @@index([projectId])
+  @@index([sourceChainId, sourceTokenAddress])
+}
+
+model MigrationCampaign {
+  id            String          @id @default(cuid())
+  projectId     String
+  tokenId       String
+  name          String
+  snapshotBlock String
+  merkleRoot    String?
+  status        String
+  createdAt     DateTime        @default(now())
+  project       Project         @relation(fields: [projectId], references: [id])
+  token         Token           @relation(fields: [tokenId], references: [id])
+  snapshots     SnapshotEntry[]
+  claims        Claim[]
+
+  @@index([projectId])
+  @@index([tokenId])
+}
+
+model SnapshotEntry {
+  id         String             @id @default(cuid())
+  campaignId String
+  address    String
+  balance    String
+  campaign   MigrationCampaign  @relation(fields: [campaignId], references: [id])
+
+  @@index([campaignId, address])
+}
+
+model Claim {
+  id         String            @id @default(cuid())
+  campaignId String
+  address    String
+  amount     String
+  proof      String            @default("[]")
+  claimed    Boolean           @default(false)
+  claimedAt  DateTime?
+  campaign   MigrationCampaign @relation(fields: [campaignId], references: [id])
+
+  @@index([campaignId, address])
 }

@@ -33,6 +33,7 @@ import {
 import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
 import { ToastProvider } from "@/hooks/useToast";
 import { NonEvmWalletProvider } from "@/hooks/useNonEvmWallet";
+import { WalletContextProvider } from "@/hooks/useWalletContext";
 
 import "@solana/wallet-adapter-react-ui/styles.css";
 
@@ -155,7 +156,9 @@ export function Providers({ children }: { children: ReactNode }) {
           <WalletProvider wallets={wallets} autoConnect>
             <WalletModalProvider>
               <NonEvmWalletProvider>
-                <ToastProvider>{children}</ToastProvider>
+                <WalletContextProvider>
+                  <ToastProvider>{children}</ToastProvider>
+                </WalletContextProvider>
               </NonEvmWalletProvider>
             </WalletModalProvider>
           </WalletProvider>

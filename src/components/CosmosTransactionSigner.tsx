@@ -4,6 +4,9 @@ import { useState, useCallback } from "react";
 import { useCosmosWallet } from "@/hooks/useNonEvmWallet";
 import type { TxRequest } from "@/server/schema";
 import { useToast } from "@/hooks/useToast";
+import { SigningStargateClient } from "@cosmjs/stargate";
+import type { EncodeObject, OfflineSigner } from "@cosmjs/proto-signing";
+import { getNonEvmChain } from "@/lib/chains";
 
 interface CosmosTransactionSignerProps {
   txRequest: TxRequest & { kind: "cosmos" };
@@ -34,14 +37,8 @@ export function CosmosTransactionSigner({
       // Check if Keplr is available
       const keplr = (window as unknown as {
         keplr?: {
-          signDirect: (
-            chainId: string,
-            signer: string,
-            signDoc: unknown
-          ) => Promise<{ signed: unknown; signature: Uint8Array }>;
-          getOfflineSigner: (chainId: string) => {
-            getAccounts: () => Promise<{ address: string; pubkey: Uint8Array }[]>;
-          };
+          enable: (chainId: string) => Promise<void>;
+          getOfflineSigner: (chainId: string) => OfflineSigner;
         };
       }).keplr;
 
@@ -49,7 +46,9 @@ export function CosmosTransactionSigner({
         throw new Error("Keplr wallet not found. Please install Keplr extension.");
       }
 
-      const { chainId, messages, fee, memo } = txRequest;
+      const { chainId, fee, memo } = txRequest;
+
+      await keplr.enable(chainId);
 
       // Get the signer for this chain
       const offlineSigner = keplr.getOfflineSigner(chainId);
@@ -61,32 +60,31 @@ export function CosmosTransactionSigner({
 
       const account = accounts[0];
 
-      console.log("Signing Cosmos transaction:", {
-        chainId,
+      const rpc = resolveCosmosRpc(chainId);
+      if (!rpc) {
+        throw new Error(
+          "No RPC configured for this Cosmos chain. Set NEXT_PUBLIC_COSMOS_RPC_URL or add the chain RPC mapping."
+        );
+      }
+
+      const client = await SigningStargateClient.connectWithSigner(
+        rpc,
+        offlineSigner,
+      );
+
+      const messages = txRequest.messages as unknown as EncodeObject[];
+      const result = await client.signAndBroadcast(
+        account.address,
         messages,
         fee,
-        memo,
-        signer: account.address,
-      });
+        memo ?? "",
+      );
 
-      // For IBC transfers, we typically use signDirect or signAmino
-      // This is a simplified implementation
-      
-      // Build the sign doc (simplified - in production use @cosmjs/stargate)
-      const signDoc = {
-        bodyBytes: new Uint8Array(), // Would be serialized tx body
-        authInfoBytes: new Uint8Array(), // Would be serialized auth info
-        chainId,
-        accountNumber: "0", // Would be fetched from chain
-      };
+      if (result.code && result.code !== 0) {
+        throw new Error(result.rawLog || `Broadcast failed with code ${result.code}`);
+      }
 
-      // Sign the transaction
-      const signed = await keplr.signDirect(chainId, account.address, signDoc);
-
-      // Broadcast the signed transaction
-      // In production, use StargateClient.broadcastTx
-      const hash = await broadcastCosmosTx(chainId, signed);
-
+      const hash = result.transactionHash;
       setTxHash(hash);
       success("Transaction broadcast", `Hash: ${hash.slice(0, 16)}...`);
       onSuccess(hash);
@@ -97,7 +95,7 @@ export function CosmosTransactionSigner({
     } finally {
       setIsSigning(false);
     }
-  }, [wallet, txRequest, onSuccess, onError, showError]);
+  }, [wallet, txRequest, onSuccess, onError, showError, success]);
 
   if (txHash) {
     return (
@@ -122,8 +120,7 @@ export function CosmosTransactionSigner({
         </a>
       </div>
     );
-  }
-
+}
   return (
     <div className="space-y-4">
       <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
@@ -191,25 +188,21 @@ export function CosmosTransactionSigner({
   );
 }
 
-// Helper to broadcast Cosmos transaction
-async function broadcastCosmosTx(
-  chainId: string,
-  signedTx: { signed: unknown; signature: Uint8Array }
-): Promise<string> {
-  // In production, broadcast via a Cosmos RPC node using StargateClient
-  // For now, this is a placeholder that simulates a tx hash
-  
-  // Generate a mock tx hash (in production, this comes from the chain)
-  const mockHash = Array.from(signedTx.signature)
-    .slice(0, 32)
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("")
-    .toUpperCase();
+function resolveCosmosRpc(chainId: string): string | null {
+  const envRpc = process.env.NEXT_PUBLIC_COSMOS_RPC_URL;
+  if (envRpc && envRpc.trim()) return envRpc.trim();
 
-  console.log(`Broadcasting to ${chainId}:`, signedTx);
-  
-  // Simulate network delay
-  await new Promise((resolve) => setTimeout(resolve, 1000));
-  
-  return mockHash;
+  if (chainId.startsWith("cosmoshub")) {
+    return getNonEvmChain("cosmos")?.rpcUrls?.default.http[0] ?? null;
+  }
+
+  const fallback: Record<string, string> = {
+    "osmosis-1": "https://rpc.osmosis.zone",
+    "injective-1": "https://rpc.injective.network",
+    "evmos_9001-2": "https://evmos-rpc.publicnode.com:443",
+    "juno-1": "https://rpc-juno.itastakers.com",
+    "stargaze-1": "https://rpc.stargaze-apis.com",
+  };
+
+  return fallback[chainId] ?? null;
 }

@@ -63,36 +63,16 @@ interface WormholeQuoteResponse {
   error?: string;
 }
 
-interface WormholeTxResponse {
-  transaction?: {
-    to: string;
-    data: string;
-    value: string;
-    gasLimit: string;
-  };
-  error?: string;
-}
-
-// Token addresses on Wormhole
-const TOKEN_ADDRESSES: Record<string, Record<string, string>> = {
-  cosmos: {
-    uatom: "uatom",
-    native: "uatom",
-  },
-  osmosis: {
-    uosmo: "uosmo",
-    native: "uosmo",
-  },
-  injective: {
-    inj: "inj",
-    native: "inj",
-  },
-};
-
 export class IbcProvider implements BridgeProvider {
   name = "ibc" as const;
 
   isConfigured(): boolean {
+    // IBC/Wormhole Gateway provider is disabled in production until full
+    // server-side finality verification is implemented.
+    // Set ENABLE_IBC_PROVIDER=true to enable.
+    if (process.env.NODE_ENV === "production") {
+      return process.env.ENABLE_IBC_PROVIDER === "true";
+    }
     return true;
   }
 
@@ -122,7 +102,7 @@ export class IbcProvider implements BridgeProvider {
       );
 
       if (quote) {
-        return [this.normalizeWormholeRoute(quote, chainIdStr, intent)];
+        return [this.normalizeWormholeRoute(quote, chainIdStr)];
       }
     } catch (error) {
       console.error("Wormhole quote error:", error);
@@ -175,7 +155,6 @@ export class IbcProvider implements BridgeProvider {
   private normalizeWormholeRoute(
     route: WormholeQuoteResponse["route"],
     chainIdStr: string,
-    intent: QuoteRequest
   ): NormalizedRoute {
     if (!route) throw new Error("Invalid route data");
 

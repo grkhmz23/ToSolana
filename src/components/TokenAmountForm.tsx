@@ -4,7 +4,7 @@ import { useState, useCallback, useMemo } from "react";
 import { useAccount, useChainId } from "wagmi";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useMutation } from "@tanstack/react-query";
-import { SUPPORTED_CHAINS, NATIVE_TOKEN_ADDRESS, getChainType, type ChainType } from "@/lib/chains";
+import { NATIVE_TOKEN_ADDRESS, getChainType, type ChainType } from "@/lib/chains";
 import { parseTokenAmount } from "@/lib/format";
 import { useTokenPrice, formatUsd } from "@/hooks/useTokenPrices";
 import { useNonEvmTokenPrice } from "@/hooks/useNonEvmTokenPrices";
@@ -18,8 +18,9 @@ import type { WalletType } from "@/lib/nonEvmWallets";
 // Form values to pass back for history/re-execution
 export interface FormValues {
   sourceChainId: number | string;
-  sourceToken: string;
+  sourceToken?: string;
   sourceAmount: string;
+  sourceAmountDisplay?: string;
   destToken: string;
   slippage: number;
 }
@@ -161,6 +162,7 @@ export function TokenAmountForm({ onQuotesReceived, initialValues }: TokenAmount
         sourceChainId,
         sourceToken,
         sourceAmount: rawAmount,
+        sourceAmountDisplay: amount,
         destToken,
         slippage,
       };

@@ -84,7 +84,20 @@ export async function GET(request: Request) {
 
     // Transform sessions to a cleaner response format
     const historyItems = sessions.map((session) => {
-      const route = JSON.parse(session.selectedRouteJson);
+      const parsed = JSON.parse(session.selectedRouteJson) as unknown;
+      const route =
+        parsed &&
+        typeof parsed === "object" &&
+        "route" in parsed &&
+        parsed.route &&
+        typeof parsed.route === "object"
+          ? (parsed.route as { steps?: Array<{ description?: string }> })
+          : (parsed as { steps?: Array<{ description?: string }> });
+      const rawChainId = session.sourceChainId ?? "";
+      const parsedChainId =
+        typeof rawChainId === "string" && /^[0-9]+$/.test(rawChainId)
+          ? Number(rawChainId)
+          : rawChainId;
       return {
         id: session.id,
         createdAt: session.createdAt.toISOString(),
@@ -92,7 +105,7 @@ export async function GET(request: Request) {
         status: session.status,
         provider: session.provider,
         source: {
-          chainId: session.sourceChainId,
+          chainId: parsedChainId,
           address: session.sourceAddress,
           token: session.sourceToken,
           amount: session.sourceAmount,
@@ -107,7 +120,7 @@ export async function GET(request: Request) {
           chainType: step.chainType,
           status: step.status,
           txHashOrSig: step.txHashOrSig,
-          description: route.steps[step.index]?.description ?? `Step ${step.index + 1}`,
+          description: route.steps?.[step.index]?.description ?? `Step ${step.index + 1}`,
         })),
         errorMessage: session.errorMessage,
       };

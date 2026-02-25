@@ -8,17 +8,13 @@ interface SettingsModalProps {
   onClose: () => void;
   slippage: string;
   onSlippageChange: (value: string) => void;
-  routeSort: 'output' | 'time' | 'gas';
-  onRouteSortChange: (value: 'output' | 'time' | 'gas') => void;
 }
 
 export function SettingsModal({
   isOpen,
   onClose,
   slippage,
-  onSlippageChange,
-  routeSort,
-  onRouteSortChange
+  onSlippageChange
 }: SettingsModalProps) {
   return (
     <AnimatePresence>
@@ -77,33 +73,6 @@ export function SettingsModal({
                     />
                     <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-500">%</span>
                   </div>
-                </div>
-              </div>
-
-              {/* Route Preference */}
-              <div>
-                <div className="text-sm font-bold text-slate-400 mb-3">Route Preference</div>
-                <div className="space-y-2">
-                  {[
-                    { id: 'output', label: 'Maximum Return', desc: 'Finds the route with the most output tokens' },
-                    { id: 'time', label: 'Fastest Route', desc: 'Prioritizes bridge speed over return' },
-                    { id: 'gas', label: 'Lowest Gas', desc: 'Minimizes source chain gas fees' }
-                  ].map(opt => (
-                    <button 
-                      key={opt.id} 
-                      onClick={() => onRouteSortChange(opt.id as 'output' | 'time' | 'gas')} 
-                      className={`w-full p-3 rounded-xl border text-left transition-colors flex flex-col gap-1 ${
-                        routeSort === opt.id 
-                          ? 'bg-indigo-500/10 border-indigo-500/50' 
-                          : 'bg-white/5 border-transparent hover:bg-white/10'
-                      }`}
-                    >
-                      <span className={`text-sm font-bold ${routeSort === opt.id ? 'text-indigo-300' : 'text-slate-200'}`}>
-                        {opt.label}
-                      </span>
-                      <span className="text-[10px] text-slate-500">{opt.desc}</span>
-                    </button>
-                  ))}
                 </div>
               </div>
 

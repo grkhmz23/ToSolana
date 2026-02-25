@@ -82,7 +82,12 @@ export class TonProvider implements BridgeProvider {
   name = "ton" as const;
 
   isConfigured(): boolean {
-    // Symbiosis doesn't require API key for basic functionality
+    // TON provider is disabled in production until full
+    // server-side finality verification is implemented.
+    // Set ENABLE_TON_PROVIDER=true to enable.
+    if (process.env.NODE_ENV === "production") {
+      return process.env.ENABLE_TON_PROVIDER === "true";
+    }
     return true;
   }
 

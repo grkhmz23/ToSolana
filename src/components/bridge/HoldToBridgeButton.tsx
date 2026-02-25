@@ -44,7 +44,7 @@ export function HoldToBridgeButton({
       start = Date.now();
       animationFrame = requestAnimationFrame(animate);
     } else {
-      setProgress(0);
+      animationFrame = requestAnimationFrame(() => setProgress(0));
     }
 
     return () => cancelAnimationFrame(animationFrame);

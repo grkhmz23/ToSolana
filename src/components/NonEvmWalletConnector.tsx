@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useNonEvmWallet, useBitcoinWallet, useCosmosWallet, useTonWallet } from "@/hooks/useNonEvmWallet";
+import Image from "next/image";
+import { useBitcoinWallet, useCosmosWallet, useTonWallet } from "@/hooks/useNonEvmWallet";
 import type { WalletType } from "@/lib/nonEvmWallets";
 
 interface NonEvmWalletConnectorProps {
@@ -85,10 +86,13 @@ export function NonEvmWalletConnector({
       <div className="p-4 bg-green-50 rounded-lg border border-green-200">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center">
-            <img
+            <Image
               src={config.icon}
               alt={config.name}
+              width={24}
+              height={24}
               className="w-6 h-6 rounded-full"
+              unoptimized
             />
           </div>
           <div className="flex-1 min-w-0">
@@ -112,10 +116,13 @@ export function NonEvmWalletConnector({
     <div className="p-4 bg-white rounded-lg border border-gray-200">
       <div className="flex items-start gap-3">
         <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-          <img
+          <Image
             src={config.icon}
             alt={config.name}
+            width={24}
+            height={24}
             className="w-6 h-6 rounded-full"
+            unoptimized
           />
         </div>
         <div className="flex-1 min-w-0">
@@ -192,11 +199,10 @@ export function NonEvmWalletConnector({
 
 // Chain-specific wallet status badges
 export function WalletStatusBadge({ chainType }: { chainType: WalletType }) {
-  const wallet = chainType === "bitcoin" 
-    ? useBitcoinWallet() 
-    : chainType === "cosmos" 
-      ? useCosmosWallet() 
-      : useTonWallet();
+  const bitcoin = useBitcoinWallet();
+  const cosmos = useCosmosWallet();
+  const ton = useTonWallet();
+  const wallet = chainType === "bitcoin" ? bitcoin : chainType === "cosmos" ? cosmos : ton;
 
   if (wallet.wallet?.isConnected) {
     return (

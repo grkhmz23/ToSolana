@@ -2,50 +2,42 @@ import { NextResponse } from "next/server";
 import { quoteRequestSchema } from "@/server/schema";
 import { getAllQuotes } from "@/server/providers";
 import { injectOfficialRoute } from "@/server/official-routes";
+import { composeJupiterSwapRoutes } from "@/lib/jupiter-compose";
 import { isValidNumericString } from "@/lib/fetch-utils";
-import { isEvmChainSupported, isChainSupported, getChainType } from "@/lib/chains";
-import { isValidEvmAddress, isValidSolanaMint } from "@/lib/tokens";
+import { isChainSupported, getChainType } from "@/lib/chains";
+import { isValidEvmAddress, isValidSolanaAddress, isValidSolanaMint } from "@/lib/tokens";
 import { validateNonEvmAddress } from "@/lib/nonEvmWallets";
+import { checkDistributedRateLimit, getClientIp, RATE_LIMITS } from "@/lib/upstash-rate-limit";
+import { signRoute, stripRouteSignature, type SignedRoute } from "@/lib/route-verification";
 
-// Simple in-memory rate limiting (per IP)
-const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
-const RATE_LIMIT_WINDOW = 60000; // 1 minute
-const RATE_LIMIT_MAX = 30; // 30 requests per minute
-
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const record = rateLimitMap.get(ip);
-
-  if (!record || now > record.resetTime) {
-    rateLimitMap.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
-    return true;
-  }
-
-  if (record.count >= RATE_LIMIT_MAX) {
-    return false;
-  }
-
-  record.count++;
-  return true;
-}
-
-function getClientIp(request: Request): string {
-  // Try to get IP from headers
-  const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) {
-    return forwarded.split(",")[0]?.trim() ?? "unknown";
-  }
-  return "unknown";
-}
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   try {
-    // Rate limiting
+    // Distributed rate limiting with Upstash Redis (falls back to memory)
     const clientIp = getClientIp(request);
-    if (!checkRateLimit(clientIp)) {
+    const rateLimitResult = await checkDistributedRateLimit(
+      clientIp,
+      RATE_LIMITS.quote.windowMs,
+      RATE_LIMITS.quote.max,
+      "quote"
+    );
+    
+    if (!rateLimitResult.ok) {
       return NextResponse.json(
-        { error: "Rate limit exceeded. Please try again later." },
-        { status: 429 },
+        { 
+          error: "Rate limit exceeded. Please try again later.",
+          retryAfter: Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000),
+        },
+        { 
+          status: 429,
+          headers: {
+            "X-RateLimit-Limit": String(rateLimitResult.limit),
+            "X-RateLimit-Remaining": "0",
+            "X-RateLimit-Reset": String(Math.ceil(rateLimitResult.resetAt / 1000)),
+          },
+        },
       );
     }
 
@@ -132,7 +124,7 @@ export async function POST(request: Request) {
     }
 
     // Validate Solana address
-    if (!isValidSolanaMint(intent.solanaAddress)) {
+    if (!isValidSolanaAddress(intent.solanaAddress)) {
       return NextResponse.json(
         { error: "Invalid Solana address" },
         { status: 400 },
@@ -155,15 +147,31 @@ export async function POST(request: Request) {
 
     // Inject official 1:1 routes if applicable
     const routesWithOfficial = await injectOfficialRoute(routes, intent);
+    const routesWithSolanaSwap = await composeJupiterSwapRoutes(routesWithOfficial, intent);
 
-    if (routesWithOfficial.length === 0 && errors.length > 0) {
+    if (routesWithSolanaSwap.length === 0 && errors.length > 0) {
       return NextResponse.json(
         { routes: [], errors },
         { status: errors.some((e) => e.includes("No bridge providers configured")) ? 400 : 200 },
       );
     }
 
-    return NextResponse.json({ routes: routesWithOfficial, errors: errors.length > 0 ? errors : undefined })
+    // Sign routes for integrity verification during execution
+    // Routes include HMAC signatures that will be verified before execution
+    const signedRoutes: SignedRoute[] = routesWithSolanaSwap.map(route => 
+      signRoute(route, intent, 10 * 60 * 1000) // 10 minute expiry
+    );
+
+    return NextResponse.json(
+      { routes: signedRoutes, errors: errors.length > 0 ? errors : undefined },
+      {
+        headers: {
+          "X-RateLimit-Limit": String(rateLimitResult.limit),
+          "X-RateLimit-Remaining": String(rateLimitResult.remaining),
+          "X-RateLimit-Reset": String(Math.ceil(rateLimitResult.resetAt / 1000)),
+        },
+      }
+    );
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     // Sanitize error in production

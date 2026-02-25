@@ -77,7 +77,7 @@ export function TonTransactionSigner({
     } finally {
       setIsSigning(false);
     }
-  }, [wallet, txRequest, onSuccess, onError, showError]);
+  }, [wallet, txRequest, onSuccess, onError, showError, success]);
 
   if (txHash) {
     return (

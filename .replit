@@ -11,6 +11,7 @@ channel = "stable-24_05"
 [deployment]
 run = ["sh", "-c", "pnpm run db:push && pnpm run start"]
 deploymentTarget = "cloudrun"
+publicDir = "public"
 
 [env]
 NODE_ENV = "production"
@@ -57,3 +58,6 @@ outputType = "webview"
 task = "shell.exec"
 args = "npx next dev -p 5000 -H 0.0.0.0"
 waitForPort = 5000
+
+[agent]
+expertMode = true

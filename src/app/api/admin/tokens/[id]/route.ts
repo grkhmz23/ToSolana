@@ -4,6 +4,21 @@ import { z } from "zod";
 import { withAdminAuth } from "@/server/admin-auth";
 import { prisma, updateProjectToken } from "@/server/db";
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+type RouteContext = {
+  params?: Promise<{ id: string }> | { id: string };
+};
+
+async function getRouteId(context?: RouteContext): Promise<string | null> {
+  if (!context?.params) {
+    return null;
+  }
+  const resolved = await context.params;
+  return typeof resolved?.id === "string" && resolved.id.length > 0 ? resolved.id : null;
+}
+
 const updateTokenSchema = z.object({
   name: z.string().min(1).optional(),
   symbol: z.string().min(1).optional(),
@@ -15,9 +30,15 @@ const updateTokenSchema = z.object({
 });
 
 // GET /api/admin/tokens/[id]
-export const GET = withAdminAuth(async (request: NextRequest, { params }: { params: { id: string } }) => {
+export const GET = withAdminAuth(async (request: NextRequest, context?: RouteContext) => {
   try {
-    const { id } = params;
+    const id = await getRouteId(context);
+    if (!id) {
+      return NextResponse.json(
+        { ok: false, error: { code: "VALIDATION_ERROR", message: "Missing token id" } },
+        { status: 400 }
+      );
+    }
     
     const token = await prisma.projectToken.findUnique({
       where: { id },
@@ -47,9 +68,15 @@ export const GET = withAdminAuth(async (request: NextRequest, { params }: { para
 });
 
 // PATCH /api/admin/tokens/[id]
-export const PATCH = withAdminAuth(async (request: NextRequest, { params }: { params: { id: string } }) => {
+export const PATCH = withAdminAuth(async (request: NextRequest, context?: RouteContext) => {
   try {
-    const { id } = params;
+    const id = await getRouteId(context);
+    if (!id) {
+      return NextResponse.json(
+        { ok: false, error: { code: "VALIDATION_ERROR", message: "Missing token id" } },
+        { status: 400 }
+      );
+    }
     const body = await request.json();
     const parsed = updateTokenSchema.safeParse(body);
 

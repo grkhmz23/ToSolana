@@ -2,7 +2,20 @@ import { compareNumericStrings } from "@/lib/fetch-utils";
 import type { NormalizedRoute, QuoteRequest, TxRequest } from "../schema";
 
 export interface BridgeProvider {
-  name: "rango" | "lifi" | "thorchain" | "ibc" | "ton";
+  name:
+    | "rango"
+    | "lifi"
+    | "thorchain"
+    | "ibc"
+    | "ton"
+    | "jupiter"
+    | "socket"
+    | "flashift"
+    | "wormhole"
+    | "allbridge"
+    | "debridge"
+    | "symbiosis"
+    | "mayan";
   isConfigured(): boolean;
   getQuotes(intent: QuoteRequest): Promise<NormalizedRoute[]>;
   getStepTx(
@@ -17,12 +30,28 @@ import { RangoProvider } from "./rango";
 import { ThorchainProvider } from "./thorchain";
 import { IbcProvider } from "./ibc";
 import { TonProvider } from "./ton";
+import { JupiterProvider } from "./jupiter";
+import { SocketProvider } from "./socket";
+import { FlashiftProvider } from "./flashift";
+import { WormholeProvider } from "./wormhole";
+import { AllbridgeProvider } from "./allbridge";
+import { DebridgeProvider } from "./debridge";
+import { SymbiosisProvider } from "./symbiosis";
+import { MayanProvider } from "./mayan";
 
 const lifiProvider = new LiFiProvider();
 const rangoProvider = new RangoProvider();
 const thorchainProvider = new ThorchainProvider();
 const ibcProvider = new IbcProvider();
 const tonProvider = new TonProvider();
+const jupiterProvider = new JupiterProvider();
+const socketProvider = new SocketProvider();
+const flashiftProvider = new FlashiftProvider();
+const wormholeProvider = new WormholeProvider();
+const allbridgeProvider = new AllbridgeProvider();
+const debridgeProvider = new DebridgeProvider();
+const symbiosisProvider = new SymbiosisProvider();
+const mayanProvider = new MayanProvider();
 
 export const providers: BridgeProvider[] = [
   lifiProvider,
@@ -30,9 +59,32 @@ export const providers: BridgeProvider[] = [
   thorchainProvider,
   ibcProvider,
   tonProvider,
+  jupiterProvider,
+  socketProvider,
+  flashiftProvider,
+  wormholeProvider,
+  allbridgeProvider,
+  debridgeProvider,
+  symbiosisProvider,
+  mayanProvider,
 ];
 
-export function getProvider(name: "rango" | "lifi" | "thorchain" | "ibc" | "ton"): BridgeProvider {
+export function getProvider(
+  name:
+    | "rango"
+    | "lifi"
+    | "thorchain"
+    | "ibc"
+    | "ton"
+    | "jupiter"
+    | "socket"
+    | "flashift"
+    | "wormhole"
+    | "allbridge"
+    | "debridge"
+    | "symbiosis"
+    | "mayan",
+): BridgeProvider {
   const p = providers.find((p) => p.name === name);
   if (!p) throw new Error(`Unknown provider: ${name}`);
   return p;

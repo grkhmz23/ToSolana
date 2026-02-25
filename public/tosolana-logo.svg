@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="100%" height="100%" style="background-color: transparent;">
+  <defs>
+    <linearGradient id="smallChevronGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0044FF" />
+      <stop offset="100%" stop-color="#00F0FF" />
+    </linearGradient>
+    <linearGradient id="largeChevronGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0088FF" />
+      <stop offset="100%" stop-color="#00F0FF" />
+    </linearGradient>
+    <linearGradient id="solanaGrad" x1="437" y1="195" x2="587" y2="325" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#00F0FF" />
+      <stop offset="50%" stop-color="#8A2BE2" />
+      <stop offset="100%" stop-color="#FF00FF" />
+    </linearGradient>
+    <linearGradient id="bridgeLineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00F0FF" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#FF00FF" stop-opacity="0.8"/>
+    </linearGradient>
+    <filter id="neonGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="8" result="blur1" />
+      <feGaussianBlur in="SourceGraphic" stdDeviation="16" result="blur2" />
+      <feComponentTransfer in="blur1" result="glow1">
+        <feFuncA type="linear" slope="0.5" />
+      </feComponentTransfer>
+      <feComponentTransfer in="blur2" result="glow2">
+        <feFuncA type="linear" slope="0.3" />
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode in="glow2" />
+        <feMergeNode in="glow1" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <g id="logo-composition" transform="translate(0, 0)">
+    <g id="chevrons" filter="url(#neonGlow)">
+      <path d="M 212.5 165 L 307.5 260 L 212.5 355 L 252.5 355 L 347.5 260 L 252.5 165 Z"
+            fill="url(#smallChevronGrad)" opacity="0.7"/>
+      <path d="M 252.5 145 L 367.5 260 L 252.5 375 L 292.5 375 L 407.5 260 L 292.5 145 Z"
+            fill="url(#largeChevronGrad)" />
+    </g>
+
+    <g id="data-streams" stroke="url(#bridgeLineGrad)" stroke-width="3" stroke-dasharray="6 4" filter="url(#neonGlow)">
+      <line x1="357.5" y1="210" x2="452.5" y2="210" />
+      <line x1="407.5" y1="260" x2="452.5" y2="260" />
+      <line x1="357.5" y1="310" x2="452.5" y2="310" />
+    </g>
+
+    <g id="nodes" fill="#FFFFFF" filter="url(#neonGlow)">
+      <circle cx="357.5" cy="210" r="3" />
+      <circle cx="407.5" cy="260" r="3" />
+      <circle cx="357.5" cy="310" r="3" />
+      <circle cx="452.5" cy="210" r="3" />
+      <circle cx="452.5" cy="260" r="3" />
+      <circle cx="452.5" cy="310" r="3" />
+    </g>
+
+    <g id="solana-blocks" fill="url(#solanaGrad)" filter="url(#neonGlow)">
+      <path d="M 437.5 195 L 557.5 195 L 587.5 225 L 467.5 225 Z" />
+      <path d="M 467.5 245 L 587.5 245 L 557.5 275 L 437.5 275 Z" />
+      <path d="M 437.5 295 L 557.5 295 L 587.5 325 L 467.5 325 Z" />
+    </g>
+
+    <g id="wordmark" text-anchor="middle">
+      <text x="400" y="445" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="52" letter-spacing="-1.5">
+        <tspan font-weight="400" fill="#00F0FF">To</tspan><tspan font-weight="800" fill="#FFFFFF">Solana</tspan>
+      </text>
+      <text x="400" y="480" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-weight="600" font-size="13" letter-spacing="6" fill="#8B9BB4">
+        CROSS-CHAIN INFRASTRUCTURE
+      </text>
+    </g>
+  </g>
+</svg>

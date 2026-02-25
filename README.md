@@ -23,8 +23,9 @@ Ethereum, Arbitrum, Optimism, Base, Polygon, BSC
 # 1. Install dependencies
 pnpm install
 
-# 2. Copy env file and fill in API keys
-cp .env.example .env
+# 2. Environment setup (FREE - no signup needed!)
+# The .env file is already configured with LIFI_INTEGRATOR for free tier
+# Just change "tosolana-app" to your app name if you want
 
 # 3. Push database schema
 pnpm db:push
@@ -35,18 +36,40 @@ pnpm dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+**No API keys required!** The app works out of the box with LI.FI's free tier using just an integrator name.
+
 ## Environment Variables
+
+### ⚡ Quick Start (Free - No Signup Required!)
+
+Just set `LIFI_INTEGRATOR` to your app name and you're ready to go:
+
+```bash
+LIFI_INTEGRATOR="my-app-name"
+```
+
+That's it! No API keys needed. LI.FI's free tier works with just an integrator name.
+
+### Full Configuration
 
 | Variable | Required | Description |
 |---|---|---|
 | `DATABASE_URL` | Yes | SQLite connection string (default: `file:./dev.db`) |
 | `NEXT_PUBLIC_SOLANA_RPC_URL` | No | Solana RPC endpoint (defaults to mainnet-beta) |
-| `RANGO_API_KEY` | At least one provider | Rango Exchange API key |
-| `LIFI_API_KEY` | At least one provider | LI.FI API key |
-| `LIFI_INTEGRATOR` | Alternative to LI.FI key | LI.FI integrator name |
+| `LIFI_INTEGRATOR` | **Recommended** | LI.FI integrator name (free, no signup!) |
+| `RANGO_API_KEY` | Optional | Rango Exchange API key (for more routes) |
+| `LIFI_API_KEY` | Optional | LI.FI API key (for higher rate limits) |
 | `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` | No | WalletConnect project ID for mobile wallets |
 
-**At least one bridge provider (Rango or LI.FI) must be configured** for quotes to work. If neither is set, the app shows an actionable error message.
+### Provider Setup Options
+
+| Setup | Cost | Routes |
+|---|---|---|
+| `LIFI_INTEGRATOR` only | **FREE** | LI.FI + THORChain + IBC + TON |
+| `LIFI_INTEGRATOR` + `RANGO_API_KEY` | **FREE + Paid** | All providers (best rates) |
+| `LIFI_API_KEY` | Paid/Custom | LI.FI + THORChain + IBC + TON |
+
+**At least one bridge provider must be configured** for quotes to work.
 
 ## Scripts
 
@@ -147,3 +170,36 @@ ToSolana supports "Official 1:1" bridges for projects that have deployed NTT (Na
 - Consider caching quotes with short TTL
 - Add transaction receipt verification for bridge completion
 - **Protect ADMIN_API_KEY**: Never expose it client-side; it's only used server-side for admin routes
+
+## Migration Campaigns
+
+ToSolana includes a self-service migration system that lets projects snapshot holders and generate claims for Solana distributions.
+
+### How It Works
+1. **Create a Project**  
+   Go to `/dashboard` and create a project with your Solana owner wallet.
+
+2. **Register Token**  
+   Add your source chain token address, symbol, decimals, and total supply.
+
+3. **Create Campaign**  
+   Provide a snapshot block number and name the campaign.
+
+4. **Generate Snapshot**  
+   The snapshot engine scans token transfer logs at the specified block and stores holder balances.
+
+5. **Generate Merkle Tree**  
+   The system builds a Merkle tree from snapshot balances, saves the root, and stores proofs.
+
+6. **Activate Campaign**  
+   Move the campaign to `live` to enable claims.
+
+### Claim Flow
+Users visit `/claim/[campaignId]`, connect their Solana wallet, and sign a claim authorization. The backend:
+- Verifies Merkle proof eligibility
+- Validates signatures
+- Marks the claim as claimed
+
+### Notes
+- Snapshotting is resource-intensive. Use a dedicated RPC and set deployment limits for large holder counts.
+- Campaign state transitions are enforced server-side: `draft → snapshotting → ready → live → ended`.

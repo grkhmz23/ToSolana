@@ -3,28 +3,29 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { getChainName } from "@/lib/chains";
+import { getChainName, getNonEvmChain } from "@/lib/chains";
 import { shortenAddress, formatDuration } from "@/lib/format";
 import { useTokenPrices, formatUsd, calculateUsdValue } from "@/hooks/useTokenPrices";
 import { useMemo } from "react";
 import { NATIVE_TOKEN_ADDRESS } from "@/lib/chains";
+import { useNonEvmTokenPrice } from "@/hooks/useNonEvmTokenPrices";
 
-interface HistoryStep {
+export interface HistoryStep {
   index: number;
-  chainType: "evm" | "solana";
+  chainType: "evm" | "solana" | "bitcoin" | "cosmos" | "ton";
   status: string;
   txHashOrSig: string | null;
   description: string;
 }
 
-interface HistoryItem {
+export interface HistoryItem {
   id: string;
   createdAt: string;
   completedAt: string | null;
   status: "completed" | "failed" | string;
   provider: string;
   source: {
-    chainId: number;
+    chainId: number | string;
     address: string;
     token: string;
     amount: string;
@@ -57,7 +58,7 @@ export function HistoryList({ onReExecute }: HistoryListProps) {
     queryKey: ["history", evmAddress, publicKey?.toBase58()],
     queryFn: async () => {
       if (!evmAddress && !publicKey) {
-        throw new Error("Please connect both wallets to view history");
+        throw new Error("Please connect at least one wallet to view history");
       }
 
       const params = new URLSearchParams();
@@ -79,7 +80,7 @@ export function HistoryList({ onReExecute }: HistoryListProps) {
     return (
       <div className="rounded-xl border border-[var(--card-border)] bg-[var(--card)] p-8 text-center">
         <div className="mb-4 text-4xl">👛</div>
-        <p className="text-[var(--muted)]">Connect your wallets to view transfer history</p>
+        <p className="text-[var(--muted)]">Connect at least one wallet to view transfer history</p>
       </div>
     );
   }
@@ -121,9 +122,24 @@ export function HistoryList({ onReExecute }: HistoryListProps) {
       </div>
 
       <div className="space-y-3">
-        {data.items.map((item) => (
-          <HistoryCard key={item.id} item={item} onReExecute={onReExecute} />
-        ))}
+        {data.items.map((item) => {
+          const isEvmSource = typeof item.source.chainId === "number";
+          const canReExecute = isEvmSource && !!evmAddress && !!publicKey;
+          const reason = isEvmSource
+            ? !evmAddress || !publicKey
+              ? "Connect EVM and Solana wallets to repeat this transfer"
+              : null
+            : "Non-EVM re-execution is not supported yet";
+          return (
+            <HistoryCard
+              key={item.id}
+              item={item}
+              onReExecute={onReExecute}
+              canReExecute={canReExecute}
+              reExecuteReason={reason}
+            />
+          );
+        })}
       </div>
     </div>
   );
@@ -132,9 +148,13 @@ export function HistoryList({ onReExecute }: HistoryListProps) {
 function HistoryCard({
   item,
   onReExecute,
+  canReExecute = true,
+  reExecuteReason,
 }: {
   item: HistoryItem;
   onReExecute?: (item: HistoryItem) => void;
+  canReExecute?: boolean;
+  reExecuteReason?: string | null;
 }) {
   const isCompleted = item.status === "completed";
   const isFailed = item.status === "failed";
@@ -151,24 +171,41 @@ function HistoryCard({
   const timeStr = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
   // Fetch current prices for display
-  const tokens = useMemo(() => [
-    { chainId: item.source.chainId, address: item.source.token },
-    { chainId: 1151111081099710, address: "11111111111111111111111111111111" }, // SOL
-  ], [item.source.chainId, item.source.token]);
+  const isEvmSource = typeof item.source.chainId === "number";
+
+  const tokens = useMemo(
+    () => [
+      { chainId: item.source.chainId as number, address: item.source.token },
+      { chainId: 1151111081099710, address: "11111111111111111111111111111111" }, // SOL
+    ],
+    [item.source.chainId, item.source.token],
+  );
   
-  const { data: priceData } = useTokenPrices(tokens);
+  const { data: priceData } = useTokenPrices(isEvmSource ? tokens : []);
+  const { data: nonEvmPrice } = useNonEvmTokenPrice(
+    !isEvmSource ? String(item.source.chainId) : null
+  );
   
   // Calculate USD values
   const inputUsdValue = useMemo(() => {
+    if (!isEvmSource) {
+      if (!nonEvmPrice?.priceUsd) return null;
+      const chainId = String(item.source.chainId);
+      const decimals =
+        chainId === "bitcoin" ? 8 : chainId === "cosmos" ? 6 : chainId === "ton" ? 9 : 8;
+      return calculateUsdValue(item.source.amount, decimals, nonEvmPrice.priceUsd);
+    }
+
     const sourcePrice = priceData?.prices.find(
-      (p) => p.chainId === item.source.chainId && 
-        p.address.toLowerCase() === item.source.token.toLowerCase()
+      (p) =>
+        p.chainId === (item.source.chainId as number) &&
+        p.address.toLowerCase() === item.source.token.toLowerCase(),
     )?.priceUsd;
     if (!sourcePrice) return null;
     
     const decimals = item.source.token === NATIVE_TOKEN_ADDRESS ? 18 : 18;
     return calculateUsdValue(item.source.amount, decimals, sourcePrice);
-  }, [priceData, item.source]);
+  }, [priceData, item.source, isEvmSource, nonEvmPrice]);
   
   const outputUsdValue = useMemo(() => {
     const solPrice = priceData?.prices.find(
@@ -212,7 +249,7 @@ function HistoryCard({
 
           <div>
             <p className="text-sm font-medium text-[var(--foreground)]">
-              {getChainName(item.source.chainId)} → Solana
+              {getDisplayChainName(item.source.chainId)} → Solana
             </p>
             <p className="text-xs text-[var(--muted)]">
               {dateStr} at {timeStr}
@@ -241,7 +278,7 @@ function HistoryCard({
         <div>
           <p className="text-xs text-[var(--muted)]">From</p>
           <p className="text-sm font-medium text-[var(--foreground)]">
-            {shortenAddress(item.source.token, 6)} on {getChainName(item.source.chainId)}
+            {shortenAddress(item.source.token, 6)} on {getDisplayChainName(item.source.chainId)}
           </p>
           <p className="text-xs text-[var(--muted)]">
             Amount: {shortenAmount(item.source.amount)}
@@ -307,8 +344,14 @@ function HistoryCard({
       {/* Actions */}
       {onReExecute && (
         <button
-          onClick={() => onReExecute(item)}
-          className="w-full rounded-lg border border-[var(--card-border)] px-3 py-2 text-sm text-[var(--muted)] transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)]"
+          onClick={() => canReExecute && onReExecute(item)}
+          disabled={!canReExecute}
+          title={!canReExecute && reExecuteReason ? reExecuteReason : undefined}
+          className={`w-full rounded-lg border px-3 py-2 text-sm transition-colors ${
+            canReExecute
+              ? "border-[var(--card-border)] text-[var(--muted)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
+              : "border-[var(--card-border)]/60 text-[var(--muted)]/60 cursor-not-allowed"
+          }`}
         >
           Repeat Transfer
         </button>
@@ -332,10 +375,15 @@ function shortenAmount(amount: string): string {
   return num.toLocaleString(undefined, { maximumFractionDigits: 6 });
 }
 
-function getExplorerUrl(chainType: "evm" | "solana", txHash: string): string {
-  if (chainType === "solana") {
-    return `https://solscan.io/tx/${txHash}`;
-  }
-  // For EVM, default to etherscan - ideally we'd have chain-specific explorers
+function getExplorerUrl(chainType: "evm" | "solana" | "bitcoin" | "cosmos" | "ton", txHash: string): string {
+  if (chainType === "solana") return `https://solscan.io/tx/${txHash}`;
+  if (chainType === "bitcoin") return `https://mempool.space/tx/${txHash}`;
+  if (chainType === "cosmos") return `https://www.mintscan.io/tx/${txHash}`;
+  if (chainType === "ton") return `https://tonscan.org/tx/${txHash}`;
   return `https://etherscan.io/tx/${txHash}`;
+}
+
+function getDisplayChainName(chainId: number | string): string {
+  if (typeof chainId === "number") return getChainName(chainId);
+  return getNonEvmChain(chainId)?.name ?? String(chainId).toUpperCase();
 }

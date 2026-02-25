@@ -5,11 +5,13 @@ import { motion } from 'framer-motion';
 import { NoiseOverlay } from '@/components/ui/NoiseOverlay';
 import { FloatingIslandHeader } from '@/components/bridge/FloatingIslandHeader';
 import { BridgeWidget } from '@/components/bridge/BridgeWidget';
+import { WalletModal } from '@/components/modals/WalletModal';
+import { useWalletContext } from '@/hooks/useWalletContext';
+import Link from "next/link";
 
 export default function Home() {
-  const [isSourceConnected, setIsSourceConnected] = useState(false);
-  const [isDestConnected, setIsDestConnected] = useState(false);
   const [walletModalOpen, setWalletModalOpen] = useState(false);
+  const { isSourceConnected, isDestConnected } = useWalletContext();
 
   return (
     <div className="min-h-screen bg-[#05050A] text-slate-50 font-sans selection:bg-indigo-500/30 overflow-hidden relative">
@@ -60,13 +62,46 @@ export default function Home() {
         {/* Bridge Widget */}
         <BridgeWidget
           onConnectWallets={() => setWalletModalOpen(true)}
-          isSourceConnected={isSourceConnected}
-          isDestConnected={isDestConnected}
-          setIsSourceConnected={setIsSourceConnected}
-          setIsDestConnected={setIsDestConnected}
         />
 
+        {/* Migration CTA */}
+        <div className="mt-12 w-full max-w-3xl">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 md:p-8">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h2 className="text-xl md:text-2xl font-semibold text-white">
+                  Migration Dashboard
+                </h2>
+                <p className="text-sm md:text-base text-slate-400 mt-2">
+                  Register your token, generate snapshots, build merkle claims, and launch a self-serve
+                  Solana migration campaign.
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <Link
+                  href="/dashboard"
+                  className="px-4 py-2 rounded-full bg-white text-black text-sm font-semibold hover:scale-[1.02] transition"
+                >
+                  Open Dashboard
+                </Link>
+                <Link
+                  href="/dashboard/project/new"
+                  className="px-4 py-2 rounded-full border border-white/20 text-white text-sm font-semibold hover:border-white/40 transition"
+                >
+                  Create Project
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </main>
+
+      {/* Wallet Modal */}
+      <WalletModal 
+        isOpen={walletModalOpen} 
+        onClose={() => setWalletModalOpen(false)} 
+      />
 
       {/* CSS Animations */}
       <style jsx global>{`

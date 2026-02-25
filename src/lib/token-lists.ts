@@ -282,6 +282,12 @@ export interface TokenInfo {
   chainId: number;
 }
 
+export function getTokenSymbolFromList(tokens: TokenInfo[], address: string): string | null {
+  const normalized = address.toLowerCase();
+  const match = tokens.find((t) => t.address.toLowerCase() === normalized);
+  return match?.symbol ?? null;
+}
+
 /**
  * Check if token list is cached and not expired
  */

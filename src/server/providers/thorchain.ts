@@ -12,8 +12,6 @@ const THORCHAIN_QUOTE_ENDPOINT = `${THORCHAIN_API_URL}/quote/swap`;
 // Asset identifiers for THORChain
 const BTC_ASSET = "BTC.BTC";
 const ETH_ASSET = "ETH.ETH";
-const RUNE_ASSET = "THOR.RUNE";
-
 // Solana is not directly supported by THORChain, so we route through ETH or use Maya Protocol
 // For now, we'll use ETH as an intermediate and suggest the user bridges ETH->SOL via Wormhole
 // OR use Maya Protocol which supports SOL
@@ -89,16 +87,23 @@ export class ThorchainProvider implements BridgeProvider {
   name = "thorchain" as const;
 
   isConfigured(): boolean {
-    // THORChain doesn't require an API key
+    // THORChain/Maya provider is disabled in production until full
+    // server-side finality verification is implemented.
+    // Set ENABLE_THORCHAIN_PROVIDER=true to enable.
+    if (process.env.NODE_ENV === "production") {
+      return process.env.ENABLE_THORCHAIN_PROVIDER === "true";
+    }
     return true;
   }
 
   async getQuotes(intent: QuoteRequest): Promise<NormalizedRoute[]> {
-    // Validate this is a Bitcoin request
-    if (intent.sourceChainType !== "bitcoin" && typeof intent.sourceChainId === "string") {
-      if (intent.sourceChainId !== "bitcoin") {
-        return [];
-      }
+    // THORChain provider is only for Bitcoin-source flows in this app.
+    // If chain type is provided, trust it. Otherwise accept only explicit "bitcoin" sourceChainId.
+    const isBitcoinSource =
+      intent.sourceChainType === "bitcoin" ||
+      (intent.sourceChainType === undefined && intent.sourceChainId === "bitcoin");
+    if (!isBitcoinSource) {
+      return [];
     }
 
     // THORChain uses 1e8 precision for all amounts
@@ -113,17 +118,13 @@ export class ThorchainProvider implements BridgeProvider {
     try {
       const mayaRoute = await this.getMayaQuote(intent, amount1e8);
       if (mayaRoute) return [mayaRoute];
-    } catch (error) {
-      console.log("Maya Protocol not available, trying THORChain:");
+    } catch {
+      console.log("Maya Protocol not available for BTC -> SOL quote");
     }
 
-    // Fallback: THORChain BTC -> ETH (user would need to bridge ETH->SOL separately)
-    try {
-      const thorchainRoute = await this.getThorchainQuote(intent, amount1e8);
-      if (thorchainRoute) return [thorchainRoute];
-    } catch (error) {
-      console.error("THORChain quote error:", error);
-    }
+    // THORChain BTC->ETH fallback is intentionally disabled here:
+    // this Solana-only flow does not collect an ETH destination address, so the
+    // THORChain fallback route cannot be quoted safely/executably.
 
     return [];
   }

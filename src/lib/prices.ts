@@ -56,6 +56,8 @@ const TOKEN_OVERRIDES: Record<string, string> = {
   "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599": "wrapped-bitcoin", // WBTC
   "0x7d1afa7b718fb893db30a3abc0cfc608aacfebb0": "matic-network", // MATIC
   "0xb8c77482e45f1f44de1745f52c74426c631bdd52": "bnb", // BNB on Ethereum
+  // Solana SPL tokens (common)
+  "epjfwdd5aufqssqem2qn1xzybapc8g4weggkzwytdt1v": "usd-coin", // USDC on Solana
 };
 
 export interface TokenPrice {

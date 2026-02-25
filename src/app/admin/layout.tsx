@@ -1,27 +1,21 @@
 // Admin layout with authentication check
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
+import Link from "next/link";
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [adminKey, setAdminKey] = useState("");
-  const router = useRouter();
-
-  useEffect(() => {
-    // Check for stored admin key
-    const stored = sessionStorage.getItem("adminKey");
-    if (stored) {
-      setIsAuthenticated(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    if (typeof window === "undefined") {
+      return false;
     }
-    setIsLoading(false);
-  }, []);
+    return !!sessionStorage.getItem("adminKey");
+  });
+  const [adminKey, setAdminKey] = useState("");
 
   const handleLogin = () => {
     if (adminKey.trim()) {
@@ -35,14 +29,6 @@ export default function AdminLayout({
     setIsAuthenticated(false);
     setAdminKey("");
   };
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
 
   if (!isAuthenticated) {
     return (
@@ -89,18 +75,18 @@ export default function AdminLayout({
           <div className="flex justify-between h-16">
             <div className="flex items-center space-x-8">
               <h1 className="text-xl font-bold text-gray-900">ToSolana Admin</h1>
-              <a
+              <Link
                 href="/admin"
                 className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
               >
                 Dashboard
-              </a>
-              <a
+              </Link>
+              <Link
                 href="/admin/tokens"
                 className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
               >
                 Tokens
-              </a>
+              </Link>
             </div>
             <div className="flex items-center">
               <button

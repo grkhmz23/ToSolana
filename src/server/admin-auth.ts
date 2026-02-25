@@ -8,6 +8,9 @@ if (!ADMIN_API_KEY && process.env.NODE_ENV === "production") {
 }
 
 export function validateAdminKey(request: NextRequest): boolean {
+  if (!request) {
+    return false;
+  }
   const key = request.headers.get("x-admin-key");
   return !!ADMIN_API_KEY && key === ADMIN_API_KEY;
 }

@@ -9,6 +9,13 @@ import {
   providerEnum,
 } from '@/server/schema';
 
+const mockSessionAuth = {
+  scheme: 'evm' as const,
+  challenge: 'mock.challenge',
+  message: 'Authorize this session',
+  signature: '0xabc123',
+};
+
 describe('Schema Validation', () => {
   describe('quoteRequestSchema', () => {
     it('should validate valid quote request', () => {
@@ -127,6 +134,7 @@ describe('Schema Validation', () => {
         provider: 'lifi',
         routeId: 'route_abc',
         stepIndex: 0,
+        sessionAuth: mockSessionAuth,
       };
       const result = executeStepRequestSchema.safeParse(valid);
       expect(result.success).toBe(true);
@@ -138,6 +146,7 @@ describe('Schema Validation', () => {
         provider: 'rango',
         routeId: 'route_abc',
         stepIndex: -1,
+        sessionAuth: mockSessionAuth,
       };
       const result = executeStepRequestSchema.safeParse(invalid);
       expect(result.success).toBe(false);
@@ -149,6 +158,7 @@ describe('Schema Validation', () => {
         provider: 'lifi',
         routeId: 'route_abc',
         stepIndex: 1.5,
+        sessionAuth: mockSessionAuth,
       };
       const result = executeStepRequestSchema.safeParse(invalid);
       expect(result.success).toBe(false);
@@ -160,6 +170,7 @@ describe('Schema Validation', () => {
         provider: 'invalid',
         routeId: 'route_abc',
         stepIndex: 0,
+        sessionAuth: mockSessionAuth,
       };
       const result = executeStepRequestSchema.safeParse(invalid);
       expect(result.success).toBe(false);
@@ -171,6 +182,7 @@ describe('Schema Validation', () => {
         provider: 'lifi',
         routeId: 'route_abc',
         stepIndex: 0,
+        sessionAuth: mockSessionAuth,
       };
       const result = executeStepRequestSchema.safeParse(invalid);
       expect(result.success).toBe(false);
@@ -215,9 +227,12 @@ describe('Schema Validation', () => {
     it('should validate valid update step request', () => {
       const valid = {
         sessionId: 'sess_123',
+        provider: 'lifi',
+        routeId: 'route_123',
         stepIndex: 0,
-        status: 'confirmed',
+        status: 'submitted',
         txHashOrSig: '0xabc123',
+        sessionAuth: mockSessionAuth,
       };
       const result = updateStepRequestSchema.safeParse(valid);
       expect(result.success).toBe(true);
@@ -226,8 +241,11 @@ describe('Schema Validation', () => {
     it('should accept update without txHashOrSig', () => {
       const valid = {
         sessionId: 'sess_123',
+        provider: 'lifi',
+        routeId: 'route_123',
         stepIndex: 0,
-        status: 'signing',
+        status: 'failed',
+        sessionAuth: mockSessionAuth,
       };
       const result = updateStepRequestSchema.safeParse(valid);
       expect(result.success).toBe(true);
@@ -236,8 +254,11 @@ describe('Schema Validation', () => {
     it('should reject invalid status', () => {
       const invalid = {
         sessionId: 'sess_123',
+        provider: 'lifi',
+        routeId: 'route_123',
         stepIndex: 0,
-        status: 'invalid_status',
+        status: 'confirmed',
+        sessionAuth: mockSessionAuth,
       };
       const result = updateStepRequestSchema.safeParse(invalid);
       expect(result.success).toBe(false);

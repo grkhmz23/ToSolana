@@ -1,46 +1,62 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Settings, History, ChevronDown, ArrowRight, Activity, ShieldCheck, Lock } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import Image from "next/image";
+import { Settings, History, ChevronDown, ArrowRight, Activity, ShieldCheck, Lock, AlertCircle, Loader2 } from 'lucide-react';
 import { AnimatedNumber } from '@/components/ui/AnimatedNumber';
 import { HoldToBridgeButton } from './HoldToBridgeButton';
-import { RouteVisualizer } from './RouteVisualizer';
-import { WalletModal, SettingsModal, ChainModal } from '@/components/modals';
-import { CHAINS, SOLANA_CHAIN, TOKENS, DEFAULT_TOKENS } from '@/lib/constants';
-import type { Chain, Token, Route } from '@/types/bridge';
+import { SettingsModal, ChainModal } from '@/components/modals';
+import { SOLANA_CHAIN, TOKENS, DEFAULT_TOKENS } from '@/lib/constants';
+import { useWalletContext } from '@/hooks/useWalletContext';
+import { useBridgeExecution } from '@/hooks/useBridgeExecution';
+import { useRouteFilters } from '@/components/RouteFilters';
+import { RoutesList } from '@/components/RoutesList';
+import { useTokenPrice, formatUsd } from '@/hooks/useTokenPrices';
+import { useNonEvmTokenPrice } from '@/hooks/useNonEvmTokenPrices';
+import type { Token } from '@/types/bridge';
+import type { NormalizedRoute } from '@/server/schema';
+import { getChainIdByName } from '@/lib/chains';
+import { parseTokenAmount } from '@/lib/format';
 
 interface BridgeWidgetProps {
   onConnectWallets: () => void;
-  isSourceConnected: boolean;
-  isDestConnected: boolean;
-  setIsSourceConnected: (value: boolean) => void;
-  setIsDestConnected: (value: boolean) => void;
 }
 
-export function BridgeWidget({
-  onConnectWallets,
-  isSourceConnected,
-  isDestConnected,
-  setIsSourceConnected,
-  setIsDestConnected
-}: BridgeWidgetProps) {
-  // Form states
-  const [sourceChain, setSourceChain] = useState<Chain>(CHAINS[0]); 
-  const destChain = SOLANA_CHAIN;
+// Quote API response type
+interface QuoteResponse {
+  routes: NormalizedRoute[];
+  errors?: string[];
+}
+
+const SOLANA_PRICE_CHAIN_ID = 1151111081099710;
+
+export function BridgeWidget({ onConnectWallets }: BridgeWidgetProps) {
+  // Wallet context
+  const { 
+    sourceChain, 
+    setSourceChain, 
+    sourceWallet, 
+    destWallet,
+    isSourceConnected, 
+    isDestConnected,
+    isFullyConnected 
+  } = useWalletContext();
+  const { executeBridge, isExecuting: isBridgeExecuting } = useBridgeExecution();
   
+  // Form states
   const [sourceToken, setSourceToken] = useState<Token>(TOKENS['ethereum'][0]);
-  const [destToken, setDestToken] = useState<Token>(TOKENS['solana'][0]);
-  const [amount, setAmount] = useState<string>('1.5');
+  const [destToken] = useState<Token>(TOKENS['solana'][0]);
+  const [amount, setAmount] = useState<string>('');
   
   // Settings & Routing states
   const [slippage, setSlippage] = useState('3.0');
-  const [routeSort, setRouteSort] = useState<'output' | 'time' | 'gas'>('output');
   const [isCalculating, setIsCalculating] = useState(false);
-  const [routes, setRoutes] = useState<Route[]>([]);
+  const [routes, setRoutes] = useState<NormalizedRoute[]>([]);
+  const [selectedRoute, setSelectedRoute] = useState<NormalizedRoute | null>(null);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
   
   // Modals
-  const [walletModalOpen, setWalletModalOpen] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [chainModalOpen, setChainModalOpen] = useState(false);
 
@@ -68,58 +84,225 @@ export function BridgeWidget({
 
   // Update tokens when chain changes
   useEffect(() => {
-    const chainTokens = TOKENS[sourceChain.id] || DEFAULT_TOKENS;
-    setSourceToken(chainTokens[0]);
+    if (sourceChain) {
+      const chainTokens = TOKENS[sourceChain.id] || DEFAULT_TOKENS;
+      setSourceToken(chainTokens[0]);
+    }
   }, [sourceChain]);
 
-  // Mock route calculation
-  useEffect(() => {
-    if (parseFloat(amount) > 0) {
-      setIsCalculating(true);
-      setRoutes([]);
-      const timer = setTimeout(() => {
-        let newRoutes: Route[] = [];
-        
-        if (sourceToken.isOfficial) {
-          newRoutes.push({ 
-            id: '1', 
-            provider: 'Wormhole (NTT)', 
-            outputAmount: amount, 
-            estimatedTime: '~15m', 
-            feeUsd: '$0.50', 
-            gasUsd: '$1.20', 
-            tags: ['Official 1:1', 'Zero Slippage'], 
-            impact: 0 
-          });
-        } else {
-          const baseOutput = (parseFloat(amount) * sourceToken.price / destToken.price) * 0.99;
-          newRoutes = [
-            { id: '2', provider: 'LI.FI Aggregator', outputAmount: baseOutput.toFixed(4), estimatedTime: '~2m', feeUsd: '$4.50', gasUsd: '$1.80', tags: ['Best Return'], impact: 0.1 },
-            { id: '3', provider: 'Rango Exchange', outputAmount: (baseOutput * 0.98).toFixed(4), estimatedTime: '~1m', feeUsd: '$5.20', gasUsd: '$2.50', tags: ['Fastest'], impact: 0.2 },
-            { id: '4', provider: 'Symbiosis', outputAmount: (baseOutput * 0.95).toFixed(4), estimatedTime: '~5m', feeUsd: '$2.20', gasUsd: '$1.00', tags: [], impact: 1.5 }
-          ];
-          
-          if (sourceChain.type === 'bitcoin') {
-            newRoutes = [{ id: 'btc1', provider: 'THORChain', outputAmount: baseOutput.toFixed(4), estimatedTime: '~45m', feeUsd: '$15.00', gasUsd: '$8.00', tags: ['Native BTC'], impact: 0.5 }];
-          } else if (sourceChain.type === 'cosmos') {
-            newRoutes = [{ id: 'cos1', provider: 'Wormhole (IBC)', outputAmount: baseOutput.toFixed(4), estimatedTime: '~5m', feeUsd: '$1.00', gasUsd: '$0.50', tags: ['Best Return'], impact: 0.1 }];
-          }
+  const { filteredRoutes, RouteFiltersComponent } = useRouteFilters(routes);
+  const displayedRoutes = filteredRoutes.length > 0 ? filteredRoutes : routes;
 
-          if (routeSort === 'time') newRoutes.sort((a, b) => parseInt(a.estimatedTime.replace(/\D/g, '')) - parseInt(b.estimatedTime.replace(/\D/g, '')));
-          if (routeSort === 'gas') newRoutes.sort((a, b) => parseFloat(a.gasUsd.replace('$', '')) - parseFloat(b.gasUsd.replace('$', '')));
-        }
-        
-        setRoutes(newRoutes);
-        setIsCalculating(false);
-      }, 1200);
-      return () => clearTimeout(timer);
-    } else {
+  // Fetch real quotes from API
+  const fetchQuotes = useCallback(async () => {
+    if (!amount || parseFloat(amount) <= 0) {
       setRoutes([]);
+      setSelectedRoute(null);
+      return;
     }
-  }, [amount, sourceChain, sourceToken, destToken, routeSort]);
 
-  const bestRoute = routes.length > 0 ? routes[0] : null;
-  const isHighImpact = bestRoute ? bestRoute.impact > 1.0 : false;
+    if (!sourceChain) {
+      setQuoteError('Please select a source chain');
+      return;
+    }
+
+    if (!isFullyConnected) {
+      // Don't fetch if wallets aren't connected
+      return;
+    }
+
+    setIsCalculating(true);
+    setQuoteError(null);
+    setRoutes([]);
+
+    try {
+      // Get chain ID
+      const chainId = sourceChain.type === 'evm' 
+        ? getChainIdByName(sourceChain.id)
+        : sourceChain.id;
+
+      if (!chainId) {
+        throw new Error('Invalid chain selected');
+      }
+
+      // Build request
+      const sourceTokenAddress = sourceToken.address;
+      const destinationTokenAddress = destToken.address;
+      const sourceTokenDecimals = sourceToken.decimals;
+
+      if (!sourceTokenAddress) {
+        throw new Error(`Token address unavailable for ${sourceToken.symbol} on ${sourceChain.name}`);
+      }
+      if (!destinationTokenAddress) {
+        throw new Error(`Destination token address unavailable for ${destToken.symbol}`);
+      }
+      if (sourceTokenDecimals === undefined) {
+        throw new Error(`Token decimals unavailable for ${sourceToken.symbol}`);
+      }
+
+      const requestBody = {
+        sourceChainId: chainId,
+        sourceTokenAddress,
+        sourceAmount: parseTokenAmount(amount, sourceTokenDecimals),
+        destinationTokenAddress,
+        sourceAddress: sourceWallet.address || '',
+        solanaAddress: destWallet.address || '',
+        slippage: parseFloat(slippage),
+        sourceChainType: sourceChain.type,
+      };
+
+      const response = await fetch('/api/quote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      });
+
+      const data: QuoteResponse = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.errors?.[0] || 'Failed to fetch quotes');
+      }
+
+      if (data.routes.length === 0) {
+        setQuoteError('No routes found for this transfer');
+      } else {
+        setRoutes(data.routes);
+        setSelectedRoute(data.routes[0]);
+      }
+
+      // Show warnings if any
+      if (data.errors && data.errors.length > 0) {
+        console.warn('Quote warnings:', data.errors);
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to fetch quotes';
+      setQuoteError(message);
+      setRoutes([]);
+      console.error('Quote error:', err);
+    } finally {
+      setIsCalculating(false);
+    }
+  }, [amount, sourceChain, sourceToken, destToken, sourceWallet.address, destWallet.address, slippage, isFullyConnected]);
+
+  // Debounced quote fetching
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (isFullyConnected && amount && parseFloat(amount) > 0) {
+        fetchQuotes();
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [amount, sourceChain, sourceToken, destToken, slippage, isFullyConnected, fetchQuotes]);
+
+  // Calculate output amount and price impact
+  const bestRoute = selectedRoute;
+  const outputDecimals = destToken.decimals ?? 9;
+  const outputAmount = bestRoute 
+    ? (parseFloat(bestRoute.estimatedOutput.amount) / Math.pow(10, outputDecimals)).toFixed(6)
+    : '0';
+
+  const sourceEvmChainId = sourceChain?.type === 'evm'
+    ? getChainIdByName(sourceChain.id)
+    : null;
+
+  const { data: sourceEvmPriceData } = useTokenPrice(
+    sourceChain?.type === 'evm' && sourceEvmChainId && sourceToken.address
+      ? { chainId: sourceEvmChainId, address: sourceToken.address }
+      : null,
+  );
+  const { data: sourceNonEvmPriceData } = useNonEvmTokenPrice(
+    sourceChain && sourceChain.type !== 'evm' && sourceChain.type !== 'solana'
+      ? sourceChain.id
+      : null,
+  );
+  const { data: destPriceData } = useTokenPrice(
+    destToken.address
+      ? { chainId: SOLANA_PRICE_CHAIN_ID, address: destToken.address }
+      : null,
+  );
+
+  const sourceTokenPriceUsd = sourceChain?.type === 'evm'
+    ? (sourceEvmPriceData?.priceUsd ?? null)
+    : (sourceNonEvmPriceData?.priceUsd ?? null);
+  const destTokenPriceUsd = destPriceData?.priceUsd ?? null;
+
+  const inputAmountNumber = parseFloat(amount || '0') || 0;
+  const outputAmountNumber = parseFloat(outputAmount) || 0;
+  const inputUsd = sourceTokenPriceUsd !== null ? inputAmountNumber * sourceTokenPriceUsd : null;
+  const outputUsd = destTokenPriceUsd !== null ? outputAmountNumber * destTokenPriceUsd : null;
+  const priceImpact =
+    inputUsd !== null && outputUsd !== null && inputUsd > 0
+      ? ((inputUsd - outputUsd) / inputUsd) * 100
+      : null;
+  const isHighImpact = (priceImpact ?? 0) > 1.0;
+
+  const inputUsdDisplay = inputAmountNumber === 0 ? '$0.00' : formatUsd(inputUsd);
+  const outputUsdDisplay = outputAmountNumber === 0 ? '$0.00' : formatUsd(outputUsd);
+
+  // Handle bridge execution
+  const handleBridge = useCallback(async () => {
+    if (!bestRoute || !isFullyConnected || !amount) return;
+    if (!sourceChain) return;
+    if (sourceChain.type === 'solana') {
+      setQuoteError('Solana cannot be used as the source chain in this flow.');
+      return;
+    }
+
+    const chainId = sourceChain.type === 'evm'
+      ? getChainIdByName(sourceChain.id)
+      : sourceChain.id;
+
+    if (!chainId) {
+      setQuoteError('Invalid chain selected');
+      return;
+    }
+
+    if (!sourceToken.address || sourceToken.decimals === undefined || !destToken.address) {
+      setQuoteError('Selected token metadata is incomplete. Please choose a supported token.');
+      return;
+    }
+
+    const rawAmount = parseTokenAmount(amount, sourceToken.decimals);
+
+    const success = await executeBridge(
+      bestRoute,
+      {
+        sourceChainId: chainId,
+        sourceChainType: sourceChain.type,
+        sourceAmountDisplay: amount,
+        sourceAmountRaw: rawAmount,
+        sourceTokenSymbol: sourceToken.symbol,
+        sourceTokenAddress: sourceToken.address,
+        destTokenSymbol: destToken.symbol,
+        destTokenAddress: destToken.address,
+        slippage: parseFloat(slippage),
+      }
+    );
+
+    if (success) {
+      // Clear amount after successful bridge
+      setAmount('');
+      setRoutes([]);
+      setSelectedRoute(null);
+    }
+  }, [bestRoute, isFullyConnected, amount, executeBridge, sourceChain, sourceToken, destToken, slippage]);
+
+  useEffect(() => {
+    if (!selectedRoute || displayedRoutes.length === 0) return;
+    const stillExists = displayedRoutes.some((r) => r.routeId === selectedRoute.routeId);
+    if (!stillExists) {
+      setSelectedRoute(displayedRoutes[0]);
+    }
+  }, [displayedRoutes, selectedRoute]);
+
+  // Format estimated time
+  const formatEta = (seconds?: number): string => {
+    if (!seconds) return '~2 min';
+    if (seconds < 60) return `~${seconds}s`;
+    if (seconds < 3600) return `~${Math.round(seconds / 60)} min`;
+    return `~${Math.round(seconds / 3600)}h ${Math.round((seconds % 3600) / 60)}m`;
+  };
 
   return (
     <>
@@ -127,7 +310,7 @@ export function BridgeWidget({
         ref={cardRef} 
         onMouseMove={handleMouseMove} 
         onMouseLeave={handleMouseLeave}
-        animate={{ rotateX, rotateY }}
+        animate={{ rotateX, rotateY, opacity: 1, scale: 1 }}
         transition={{ type: "spring", stiffness: 150, damping: 20 }}
         style={{ perspective: 1200 }}
         className="w-full max-w-[520px] z-20 relative"
@@ -168,7 +351,11 @@ export function BridgeWidget({
             <div className="bg-white/[0.02] rounded-2xl p-4 md:p-5 hover:bg-white/[0.04] transition-colors border border-transparent hover:border-white/[0.05]">
               <div className="flex justify-between text-sm text-slate-500 font-medium mb-3">
                 <span>Pay with</span>
-                {isSourceConnected && <span className="text-slate-400">Bal: {sourceToken.balance}</span>}
+                {isSourceConnected && sourceWallet.address && (
+                  <span className="text-slate-400 font-mono text-xs">
+                    {sourceWallet.address.slice(0, 6)}...{sourceWallet.address.slice(-4)}
+                  </span>
+                )}
               </div>
               
               <div className="flex items-center gap-4">
@@ -178,10 +365,12 @@ export function BridgeWidget({
                     value={amount} 
                     onChange={(e) => setAmount(e.target.value)} 
                     placeholder="0"
-                    className="w-full bg-transparent text-4xl md:text-5xl font-bold text-white focus:outline-none placeholder:text-slate-700"
+                    min="0"
+                    step="0.000001"
+                    className="w-full bg-transparent text-4xl md:text-5xl font-bold text-white focus:outline-none placeholder:text-slate-700 hide-arrows"
                   />
                   <div className="text-sm text-slate-500 font-medium mt-1 pl-1">
-                    ${(parseFloat(amount || '0') * sourceToken.price).toFixed(2)}
+                    {inputUsdDisplay}
                   </div>
                 </div>
 
@@ -190,16 +379,32 @@ export function BridgeWidget({
                   className="shrink-0 flex items-center gap-2 bg-[#12121a] hover:bg-white/10 border border-white/10 rounded-2xl p-2 pr-4 transition-all"
                 >
                   <div className="relative flex items-center">
-                    <div className="w-10 h-10 rounded-full bg-[#1e1e24] flex items-center justify-center text-2xl z-10 shadow-lg border border-white/5">
-                      {sourceToken.icon}
+                    <div className="w-10 h-10 rounded-full bg-[#1e1e24] flex items-center justify-center z-10 shadow-lg border border-white/5 overflow-hidden">
+                      <Image
+                        src={sourceToken.icon}
+                        alt={sourceToken.symbol}
+                        width={40}
+                        height={40}
+                        className="w-10 h-10 object-contain"
+                        unoptimized
+                      />
                     </div>
-                    <div className="w-6 h-6 rounded-full bg-[#2a2a35] flex items-center justify-center text-sm -ml-3 z-20 border border-[#12121a]">
-                      {sourceChain.icon}
+                    <div className="w-6 h-6 rounded-full bg-[#2a2a35] flex items-center justify-center -ml-3 z-20 border border-[#12121a] overflow-hidden">
+                      {sourceChain?.icon ? (
+                        <Image
+                          src={sourceChain.icon}
+                          alt={sourceChain.name}
+                          width={16}
+                          height={16}
+                          className="w-4 h-4 object-contain"
+                          unoptimized
+                        />
+                      ) : '?'}
                     </div>
                   </div>
                   <div className="text-left ml-1 max-w-[80px]">
                     <div className="font-bold text-white leading-tight truncate">{sourceToken.symbol}</div>
-                    <div className="text-[10px] text-slate-400 uppercase tracking-wider truncate">{sourceChain.name}</div>
+                    <div className="text-[10px] text-slate-400 uppercase tracking-wider truncate">{sourceChain?.name || 'Select'}</div>
                   </div>
                   <ChevronDown className="w-4 h-4 text-slate-400 ml-1" />
                 </button>
@@ -217,7 +422,11 @@ export function BridgeWidget({
             <div className="bg-white/[0.02] rounded-2xl p-4 md:p-5 hover:bg-white/[0.04] transition-colors border border-transparent hover:border-white/[0.05]">
               <div className="flex justify-between text-sm text-slate-500 font-medium mb-3">
                 <span>Receive on Solana</span>
-                {isDestConnected && <span className="text-slate-400">Bal: {destToken.balance}</span>}
+                {isDestConnected && destWallet.address && (
+                  <span className="text-slate-400 font-mono text-xs">
+                    {destWallet.address.slice(0, 6)}...{destWallet.address.slice(-4)}
+                  </span>
+                )}
               </div>
               
               <div className="flex items-center gap-4">
@@ -226,16 +435,16 @@ export function BridgeWidget({
                     {isCalculating ? (
                       <span className="animate-pulse">...</span>
                     ) : (
-                      <AnimatedNumber value={bestRoute?.outputAmount || '0'} />
+                      <AnimatedNumber value={outputAmount} />
                     )}
                   </div>
                   <div className="text-sm font-medium mt-1 pl-1 flex items-center gap-2">
                     <span className="text-slate-500">
-                      ${bestRoute ? (parseFloat(bestRoute.outputAmount) * destToken.price).toFixed(2) : '0.00'}
+                      {outputUsdDisplay}
                     </span>
-                    {bestRoute && bestRoute.impact > 0 && (
+                    {priceImpact !== null && priceImpact > 0.1 && (
                       <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${isHighImpact ? 'text-amber-400 bg-amber-400/10' : 'text-emerald-400 bg-emerald-400/10'}`}>
-                        -{bestRoute.impact}%
+                        -{priceImpact.toFixed(2)}%
                       </span>
                     )}
                   </div>
@@ -243,11 +452,25 @@ export function BridgeWidget({
 
                 <div className="shrink-0 flex items-center gap-2 bg-[#12121a] border border-white/10 rounded-2xl p-2 pr-4">
                   <div className="relative flex items-center">
-                    <div className="w-10 h-10 rounded-full bg-[#1e1e24] flex items-center justify-center text-2xl z-10 shadow-lg border border-white/5">
-                      {destToken.icon}
+                    <div className="w-10 h-10 rounded-full bg-[#1e1e24] flex items-center justify-center z-10 shadow-lg border border-white/5 overflow-hidden">
+                      <Image
+                        src={destToken.icon}
+                        alt={destToken.symbol}
+                        width={40}
+                        height={40}
+                        className="w-10 h-10 object-contain"
+                        unoptimized
+                      />
                     </div>
-                    <div className="w-6 h-6 rounded-full bg-[#2a2a35] flex items-center justify-center text-sm -ml-3 z-20 border border-[#12121a]">
-                      {destChain.icon}
+                    <div className="w-6 h-6 rounded-full bg-[#2a2a35] flex items-center justify-center -ml-3 z-20 border border-[#12121a] overflow-hidden">
+                      <Image
+                        src={SOLANA_CHAIN.icon}
+                        alt="Solana"
+                        width={16}
+                        height={16}
+                        className="w-4 h-4 object-contain"
+                        unoptimized
+                      />
                     </div>
                   </div>
                   <div className="text-left ml-1 max-w-[80px]">
@@ -260,29 +483,111 @@ export function BridgeWidget({
 
           </div>
 
-          {/* Route Visualizer */}
-          <RouteVisualizer
-            isCalculating={isCalculating}
-            routes={routes}
-            sourceChain={sourceChain}
-            destChain={destChain}
-            destToken={destToken}
-            amount={amount}
-          />
+          {/* Error Message */}
+          <AnimatePresence>
+            {quoteError && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mt-3 mx-1"
+              >
+                <div className="flex items-center gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{quoteError}</span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Route Info */}
+          <AnimatePresence mode="wait">
+            {bestRoute && !isCalculating && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="mt-3 mx-1"
+              >
+                <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-slate-400">Best Route</span>
+                    <span className="text-white font-medium">{bestRoute.provider}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs mt-2">
+                    <span className="text-slate-500">
+                      {formatEta(bestRoute.etaSeconds)}
+                    </span>
+                    <span className="text-slate-500">
+                      {bestRoute.fees.length} fee{bestRoute.fees.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Routes List */}
+          {routes.length > 0 && (
+            <div className="mt-4 mx-1">
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-sm font-semibold text-slate-200">All Routes</div>
+                {RouteFiltersComponent}
+              </div>
+              <RoutesList
+                routes={displayedRoutes}
+                errors={quoteError ? [quoteError] : undefined}
+                selectedRouteId={selectedRoute?.routeId ?? null}
+                onSelectRoute={(route) => setSelectedRoute(route)}
+                sourceChainId={sourceChain?.type === "evm" && sourceChain ? getChainIdByName(sourceChain.id) ?? sourceChain.id : (sourceChain?.id ?? "")}
+                recommendedRouteId={displayedRoutes[0]?.routeId ?? null}
+              />
+            </div>
+          )}
 
           {/* Action Area */}
           <div className="mt-4 px-1 pb-1">
-            {(!isSourceConnected || !isDestConnected) ? (
+            {!isFullyConnected ? (
               <button 
-                onClick={() => setWalletModalOpen(true)}
+                onClick={onConnectWallets}
                 className="w-full py-5 rounded-2xl font-bold text-lg bg-white text-black hover:bg-slate-200 transition-colors shadow-[0_0_30px_rgba(255,255,255,0.1)] hover:shadow-[0_0_40px_rgba(255,255,255,0.2)]"
               >
                 Connect Wallets
               </button>
+            ) : isBridgeExecuting ? (
+              <button 
+                disabled
+                className="w-full py-5 rounded-2xl font-bold text-lg bg-white/10 text-slate-400 cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Executing Bridge...
+              </button>
+            ) : isCalculating ? (
+              <button 
+                disabled
+                className="w-full py-5 rounded-2xl font-bold text-lg bg-white/10 text-slate-400 cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Getting Quotes...
+              </button>
+            ) : !amount || parseFloat(amount) <= 0 ? (
+              <button 
+                disabled
+                className="w-full py-5 rounded-2xl font-bold text-lg bg-white/10 text-slate-400 cursor-not-allowed"
+              >
+                Enter Amount
+              </button>
+            ) : routes.length === 0 ? (
+              <button 
+                disabled
+                className="w-full py-5 rounded-2xl font-bold text-lg bg-white/10 text-slate-400 cursor-not-allowed"
+              >
+                No Routes Available
+              </button>
             ) : (
               <HoldToBridgeButton 
-                disabled={!routes.length || parseFloat(amount) <= 0} 
-                onComplete={() => alert("Transaction sent to validation!")} 
+                disabled={false}
+                onComplete={handleBridge}
               />
             )}
           </div>
@@ -298,25 +603,11 @@ export function BridgeWidget({
       </motion.div>
 
       {/* Modals */}
-      <WalletModal
-        isOpen={walletModalOpen}
-        onClose={() => setWalletModalOpen(false)}
-        sourceChain={sourceChain}
-        isSourceConnected={isSourceConnected}
-        isDestConnected={isDestConnected}
-        onConnectSource={() => setIsSourceConnected(true)}
-        onConnectDest={() => setIsDestConnected(true)}
-        onDisconnectSource={() => setIsSourceConnected(false)}
-        onDisconnectDest={() => setIsDestConnected(false)}
-      />
-
       <SettingsModal
         isOpen={settingsModalOpen}
         onClose={() => setSettingsModalOpen(false)}
         slippage={slippage}
         onSlippageChange={setSlippage}
-        routeSort={routeSort}
-        onRouteSortChange={setRouteSort}
       />
 
       <ChainModal

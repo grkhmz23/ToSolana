@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <radialGradient id="ethBg" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+      <stop offset="0%" style="stop-color:#4a4a4a"/>
+      <stop offset="70%" style="stop-color:#2a2a2a"/>
+      <stop offset="100%" style="stop-color:#1a1a1a"/>
+    </radialGradient>
+    <filter id="ethShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-opacity="0.4"/>
+    </filter>
+    <filter id="ethGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+  
+  <!-- Background Circle -->
+  <circle cx="128" cy="128" r="120" fill="url(#ethBg)" filter="url(#ethShadow)"/>
+  
+  <!-- Outer Ring -->
+  <circle cx="128" cy="128" r="110" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.1"/>
+  
+  <!-- Ethereum Diamond Logo - Scaled and Centered -->
+  <g transform="translate(128, 128) scale(0.28) translate(-128, -208)">
+    <!-- Top Pyramid: Left Upper -->
+    <polygon fill="#343434" points="127.96 0 12.06 100.8 127.96 152.42" filter="url(#ethGlow)"/>
+    <!-- Top Pyramid: Right Upper -->
+    <polygon fill="#8C8C8C" points="127.96 0 243.86 100.8 127.96 152.42"/>
+    
+    <!-- Top Pyramid: Left Lower -->
+    <polygon fill="#3C3C3B" points="127.96 211.53 12.06 115.22 127.96 166.86"/>
+    <!-- Top Pyramid: Right Lower -->
+    <polygon fill="#8C8C8C" points="127.96 211.53 127.96 166.86 243.86 115.22"/>
+    
+    <!-- Bottom Pyramid: Left -->
+    <polygon fill="#141414" points="127.96 416.9 127.96 236.46 12.06 134.18"/>
+    <!-- Bottom Pyramid: Right -->
+    <polygon fill="#393939" points="127.96 416.9 243.86 134.18 127.96 236.46"/>
+  </g>
+  
+  <!-- Subtle highlight -->
+  <ellipse cx="128" cy="70" rx="50" ry="15" fill="#ffffff" opacity="0.05"/>
+</svg>

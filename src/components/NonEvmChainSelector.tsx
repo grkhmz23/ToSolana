@@ -1,10 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import {
-  SUPPORTED_NON_EVM_CHAINS,
-  type NonEvmChain,
-} from "@/lib/chains";
+import Image from "next/image";
+import { SUPPORTED_NON_EVM_CHAINS } from "@/lib/chains";
 
 interface NonEvmChainSelectorProps {
   selectedChain: string | null;
@@ -45,13 +43,13 @@ export function NonEvmChainSelector({
       >
         {selectedChainData ? (
           <>
-            <img
+            <Image
               src={CHAIN_ICONS[selectedChainData.id]}
               alt={selectedChainData.name}
+              width={24}
+              height={24}
               className="w-6 h-6 rounded-full"
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = "none";
-              }}
+              unoptimized
             />
             <span className="font-medium text-gray-900">
               {selectedChainData.name}
@@ -99,14 +97,13 @@ export function NonEvmChainSelector({
                     ${selectedChain === chain.id ? "bg-blue-50 text-blue-700" : "hover:bg-gray-100 text-gray-900"}
                   `}
                 >
-                  <img
+                  <Image
                     src={CHAIN_ICONS[chain.id]}
                     alt={chain.name}
+                    width={32}
+                    height={32}
                     className="w-8 h-8 rounded-full"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src =
-                        "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Crect width='32' height='32' fill='%23e5e7eb'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='12'%3E?%3C/text%3E%3C/svg%3E";
-                    }}
+                    unoptimized
                   />
                   <div className="flex-1 min-w-0">
                     <div className="font-medium">{chain.name}</div>

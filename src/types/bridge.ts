@@ -15,7 +15,9 @@ export interface Token {
   symbol: string;
   name: string;
   icon: string;
-  price: number;
+  price?: number;
+  address?: string;
+  decimals?: number;
   balance?: string;
   isOfficial?: boolean;
 }

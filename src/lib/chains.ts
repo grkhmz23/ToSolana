@@ -94,6 +94,40 @@ export function isEvmChainSupported(chainId: number): boolean {
   return chainId in CHAIN_MAP;
 }
 
+// Get chain ID by chain name (for mapping from UI to wagmi chain IDs)
+export function getChainIdByName(name: string): number | null {
+  const nameToId: Record<string, number> = {
+    ethereum: 1,
+    mainnet: 1,
+    bsc: 56,
+    binance: 56,
+    avalanche: 43114,
+    arbitrum: 42161,
+    optimism: 10,
+    base: 8453,
+    polygon: 137,
+    zksync: 324,
+    zksyncEra: 324,
+    polygonZkEvm: 1101,
+    linea: 59144,
+    scroll: 534352,
+    mantle: 5000,
+    blast: 81457,
+    fantom: 250,
+    gnosis: 100,
+    cronos: 25,
+    celo: 42220,
+    aurora: 1313161554,
+    harmony: 1666600000,
+    harmonyOne: 1666600000,
+    metis: 1088,
+    manta: 169,
+    mantaPacific: 169,
+    zora: 7777777,
+  };
+  return nameToId[name.toLowerCase()] ?? null;
+}
+
 // Get chain by ID
 export function getChain(chainId: number): Chain | undefined {
   return CHAIN_MAP[chainId];

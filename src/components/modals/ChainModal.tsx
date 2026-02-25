@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from "next/image";
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Search } from 'lucide-react';
 import { CHAINS } from '@/lib/constants';
@@ -87,8 +88,15 @@ export function ChainModal({ isOpen, onClose, onSelect }: ChainModalProps) {
                     onClick={() => { onSelect(chain); onClose(); }}
                     className="flex items-center gap-3 p-3 rounded-2xl hover:bg-white/5 border border-transparent hover:border-white/10 transition-all text-left"
                   >
-                    <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${chain.bg} flex items-center justify-center text-xl shadow-inner border border-white/5`}>
-                      {chain.icon}
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center shadow-inner border border-white/5 overflow-hidden">
+                      <Image
+                        src={chain.icon}
+                        alt={chain.name}
+                        width={32}
+                        height={32}
+                        className="w-8 h-8 object-contain"
+                        unoptimized
+                      />
                     </div>
                     <div>
                       <div className="font-bold text-slate-200">{chain.name}</div>

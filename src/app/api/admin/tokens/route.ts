@@ -7,7 +7,9 @@ import {
   getProjectTokensForAdmin,
   getProjectTokenBySource,
 } from "@/server/db";
-import { verifyErc20Metadata } from "@/server/token-verification";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 // Create token schema
 const createTokenSchema = z.object({
@@ -82,6 +84,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
     // Auto-fetch ERC20 metadata
     let metadata = { name: "", symbol: "", decimals: 18 };
     try {
+      const { verifyErc20Metadata } = await import("@/server/token-verification");
       metadata = await verifyErc20Metadata(sourceChainId, sourceTokenAddress);
     } catch (error) {
       console.warn("Failed to auto-fetch ERC20 metadata:", error);

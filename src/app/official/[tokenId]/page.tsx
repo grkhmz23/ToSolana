@@ -1,7 +1,7 @@
 // Official 1:1 Bridge Page
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useAccount } from "wagmi";
 import { useWallet } from "@solana/wallet-adapter-react";
@@ -29,37 +29,32 @@ export default function OfficialBridgePage() {
   const [error, setError] = useState<string | null>(null);
   const [amount, setAmount] = useState("");
 
+  const fetchToken = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/official/tokens/${tokenId}`);
+      const data = (await res.json()) as {
+        ok: boolean;
+        data?: Token;
+        error?: { message?: string };
+      };
+
+      if (!res.ok || !data.ok || !data.data) {
+        throw new Error(data.error?.message || "Token not found");
+      }
+
+      setToken(data.data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load token details");
+    } finally {
+      setLoading(false);
+    }
+  }, [tokenId]);
+
   useEffect(() => {
     if (tokenId) {
       fetchToken();
     }
-  }, [tokenId]);
-
-  const fetchToken = async () => {
-    try {
-      // Fetch token details from public endpoint
-      // For now, we'll use a simple approach - in production this should be a public API
-      const res = await fetch(`/api/admin/tokens/${tokenId}`, {
-        headers: { "x-admin-key": "public" }, // This will fail, so we need a public endpoint
-      });
-
-      // For demo, show placeholder
-      setToken({
-        id: tokenId,
-        symbol: "TOKEN",
-        name: "Official Token",
-        sourceChainId: 1,
-        sourceTokenAddress: "0x...",
-        solanaMint: "...",
-        decimals: 18,
-        mode: "NTT",
-      });
-    } catch (err) {
-      setError("Failed to load token details");
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [tokenId, fetchToken]);
 
   if (loading) {
     return (

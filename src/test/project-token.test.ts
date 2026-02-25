@@ -15,16 +15,10 @@ vi.mock("@/server/db", () => ({
     },
   },
   getProjectTokenBySource: vi.fn(),
-  createProjectToken: vi.fn(),
-  updateProjectToken: vi.fn(),
   createVerificationLog: vi.fn(),
 }));
 
-import {
-  getProjectTokenBySource,
-  createProjectToken,
-  updateProjectToken,
-} from "@/server/db";
+import { getProjectTokenBySource } from "@/server/db";
 
 // Token validation schemas
 const projectTokenCreateSchema = z.object({

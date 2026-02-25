@@ -1,7 +1,10 @@
 // Admin dashboard
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { adminFetch, clearAdminKey } from "@/lib/admin-client";
 
 interface Stats {
   totalTokens: number;
@@ -11,22 +14,22 @@ interface Stats {
 }
 
 export default function AdminDashboard() {
+  const router = useRouter();
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchStats();
-  }, []);
-
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
-      const adminKey = sessionStorage.getItem("adminKey");
-      const res = await fetch("/api/admin/tokens", {
-        headers: { "x-admin-key": adminKey || "" },
-      });
+      const res = await adminFetch("/api/admin/tokens");
 
       if (!res.ok) {
+        if (res.status === 401) {
+          clearAdminKey();
+          setError("Invalid admin key. Please sign in again.");
+          router.replace("/admin");
+          return;
+        }
         throw new Error("Failed to fetch stats");
       }
 
@@ -45,7 +48,11 @@ export default function AdminDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [router]);
+
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
 
   if (loading) {
     return (
@@ -91,12 +98,12 @@ export default function AdminDashboard() {
       <div className="bg-white rounded-lg shadow p-6">
         <h3 className="text-lg font-medium text-gray-900 mb-4">Quick Actions</h3>
         <div className="flex space-x-4">
-          <a
+          <Link
             href="/admin/tokens"
             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
           >
             Manage Tokens
-          </a>
+          </Link>
         </div>
       </div>
 

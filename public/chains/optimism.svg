@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <radialGradient id="opBg" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+      <stop offset="0%" style="stop-color:#ff0420"/>
+      <stop offset="70%" style="stop-color:#d9041a"/>
+      <stop offset="100%" style="stop-color:#b00315"/>
+    </radialGradient>
+    <linearGradient id="opSmile" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#ffffff"/>
+      <stop offset="100%" style="stop-color:#ffe6e9"/>
+    </linearGradient>
+    <filter id="opShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-opacity="0.4"/>
+    </filter>
+    <filter id="opGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+  
+  <!-- Background -->
+  <circle cx="128" cy="128" r="120" fill="url(#opBg)" filter="url(#opShadow)"/>
+  
+  <!-- Outer Ring -->
+  <circle cx="128" cy="128" r="110" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.2"/>
+  
+  <!-- Sun Rays -->
+  <g transform="translate(128, 128)" opacity="0.15">
+    <line x1="0" y1="-100" x2="0" y2="-70" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>
+    <line x1="0" y1="100" x2="0" y2="70" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>
+    <line x1="-100" y1="0" x2="-70" y2="0" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>
+    <line x1="100" y1="0" x2="70" y2="0" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>
+    <line x1="-71" y1="-71" x2="-50" y2="-50" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>
+    <line x1="71" y1="-71" x2="50" y2="-50" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>
+    <line x1="-71" y1="71" x2="-50" y2="50" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>
+    <line x1="71" y1="71" x2="50" y2="50" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>
+  </g>
+  
+  <!-- Face Outline -->
+  <circle cx="128" cy="128" r="55" fill="none" stroke="url(#opSmile)" stroke-width="10" filter="url(#opGlow)"/>
+  
+  <!-- Eyes -->
+  <ellipse cx="108" cy="118" rx="8" ry="10" fill="#ffffff"/>
+  <ellipse cx="148" cy="118" rx="8" ry="10" fill="#ffffff"/>
+  
+  <!-- Smile -->
+  <path d="M100 145 Q128 165 156 145" fill="none" stroke="#ffffff" stroke-width="8" stroke-linecap="round" filter="url(#opGlow)"/>
+  
+  <!-- Highlight -->
+  <ellipse cx="128" cy="95" rx="25" ry="8" fill="#ffffff" opacity="0.1"/>
+</svg>

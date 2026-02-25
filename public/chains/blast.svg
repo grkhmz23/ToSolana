@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <radialGradient id="blastBg" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+      <stop offset="0%" style="stop-color:#2a2a2a"/>
+      <stop offset="70%" style="stop-color:#1a1a1a"/>
+      <stop offset="100%" style="stop-color:#0a0a0a"/>
+    </radialGradient>
+    <linearGradient id="blastStar" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffff00"/>
+      <stop offset="50%" style="stop-color:#ffcc00"/>
+      <stop offset="100%" style="stop-color:#ff9900"/>
+    </linearGradient>
+    <linearGradient id="blastGlow" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffff00;stop-opacity:0.8"/>
+      <stop offset="100%" style="stop-color:#ff9900;stop-opacity:0"/>
+    </linearGradient>
+    <filter id="blastShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-opacity="0.5"/>
+    </filter>
+    <filter id="blastGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background -->
+  <circle cx="128" cy="128" r="120" fill="url(#blastBg)" filter="url(#blastShadow)"/>
+  
+  <!-- Outer Glow Ring -->
+  <circle cx="128" cy="128" r="110" fill="none" stroke="#ffff00" stroke-width="2" opacity="0.2"/>
+  
+  <!-- Star Burst Rays -->
+  <g transform="translate(128, 128)" opacity="0.15">
+    <polygon points="0,-100 8,-30 0,0 -8,-30" fill="#ffff00"/>
+    <polygon points="0,-100 8,-30 0,0 -8,-30" transform="rotate(45)" fill="#ffff00"/>
+    <polygon points="0,-100 8,-30 0,0 -8,-30" transform="rotate(90)" fill="#ffff00"/>
+    <polygon points="0,-100 8,-30 0,0 -8,-30" transform="rotate(135)" fill="#ffff00"/>
+    <polygon points="0,-100 8,-30 0,0 -8,-30" transform="rotate(180)" fill="#ffff00"/>
+    <polygon points="0,-100 8,-30 0,0 -8,-30" transform="rotate(225)" fill="#ffff00"/>
+    <polygon points="0,-100 8,-30 0,0 -8,-30" transform="rotate(270)" fill="#ffff00"/>
+    <polygon points="0,-100 8,-30 0,0 -8,-30" transform="rotate(315)" fill="#ffff00"/>
+  </g>
+  
+  <!-- Main Star -->
+  <g transform="translate(128, 128)" filter="url(#blastGlow)">
+    <polygon points="0,-65 15,-20 62,-20 24,8 38,52 0,25 -38,52 -24,8 -62,-20 -15,-20" fill="url(#blastStar)"/>
+  </g>
+  
+  <!-- Inner Star Detail -->
+  <g transform="translate(128, 128)">
+    <polygon points="0,-45 10,-15 42,-15 16,5 28,38 0,18 -28,38 -16,5 -42,-15 -10,-15" fill="#ffffff" opacity="0.9"/>
+  </g>
+  
+  <!-- Center Spark -->
+  <circle cx="128" cy="128" r="8" fill="#ffffff" filter="url(#blastGlow)"/>
+  
+  <!-- Floating Particles -->
+  <circle cx="80" cy="70" r="3" fill="#ffcc00" opacity="0.6"/>
+  <circle cx="176" cy="90" r="2" fill="#ffff00" opacity="0.5"/>
+  <circle cx="70" cy="170" r="2.5" fill="#ff9900" opacity="0.4"/>
+  <circle cx="185" cy="180" r="3" fill="#ffcc00" opacity="0.5"/>
+</svg>

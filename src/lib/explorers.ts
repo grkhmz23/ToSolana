@@ -1,8 +1,6 @@
 // Blockchain explorer URLs for different chains
 // Supports EVM, Bitcoin, Cosmos, and TON
 
-import { getNonEvmChain } from "./chains";
-
 // EVM chain explorers
 const EVM_EXPLORERS: Record<number, string> = {
   1: "https://etherscan.io",

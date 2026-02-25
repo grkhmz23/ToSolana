@@ -2,7 +2,21 @@ import { z } from "zod";
 
 // ---- Shared enums & primitives ----
 
-export const providerEnum = z.enum(["rango", "lifi", "thorchain", "ibc", "ton"]);
+export const providerEnum = z.enum([
+  "rango",
+  "lifi",
+  "thorchain",
+  "ibc",
+  "ton",
+  "jupiter",
+  "socket",
+  "flashift",
+  "wormhole",
+  "allbridge",
+  "debridge",
+  "symbiosis",
+  "mayan",
+]);
 export type Provider = z.infer<typeof providerEnum>;
 
 export const chainTypeEnum = z.enum(["evm", "solana", "bitcoin", "cosmos", "ton"]);
@@ -38,6 +52,8 @@ export type QuoteRequest = z.infer<typeof quoteRequestSchema>;
 export const routeStepSchema = z.object({
   chainType: chainTypeEnum,
   chainId: z.union([z.number(), z.string()]).optional(),
+  provider: providerEnum.optional(),
+  metadata: z.record(z.unknown()).optional(),
   description: z.string(),
 });
 export type RouteStep = z.infer<typeof routeStepSchema>;
@@ -82,6 +98,24 @@ export const quoteResponseSchema = z.object({
 });
 export type QuoteResponse = z.infer<typeof quoteResponseSchema>;
 
+// ---- Session auth (signed challenge) ----
+
+export const sessionAuthChallengeSchema = z.object({
+  scheme: z.literal("evm"),
+  challenge: z.string().min(1),
+  message: z.string().min(1),
+  expiresAt: z.string().min(1),
+});
+export type SessionAuthChallenge = z.infer<typeof sessionAuthChallengeSchema>;
+
+export const sessionAuthProofSchema = z.object({
+  scheme: z.literal("evm"),
+  challenge: z.string().min(1),
+  message: z.string().min(1),
+  signature: z.string().min(1),
+});
+export type SessionAuthProof = z.infer<typeof sessionAuthProofSchema>;
+
 // ---- Execute step request/response ----
 
 export const executeStepRequestSchema = z.object({
@@ -89,6 +123,7 @@ export const executeStepRequestSchema = z.object({
   provider: providerEnum,
   routeId: z.string().min(1),
   stepIndex: z.number().int().min(0),
+  sessionAuth: sessionAuthProofSchema,
 });
 export type ExecuteStepRequest = z.infer<typeof executeStepRequestSchema>;
 
@@ -113,6 +148,13 @@ export const bitcoinTxRequestSchema = z.object({
     index: z.number(),
     address: z.string(),
   })),
+  toAddress: z.string().optional(),
+  amount: z.string().optional(),
+  memo: z.string().optional(),
+  expiry: z.number().optional(),
+  warnings: z.array(z.string()).optional(),
+  recommendedGasRate: z.string().optional(),
+  gasRateUnits: z.string().optional(),
 });
 
 export const cosmosTxRequestSchema = z.object({
@@ -181,6 +223,15 @@ export const createSessionRequestSchema = z.object({
   sourceToken: z.string().min(1),
   sourceAmount: z.string().min(1),
   destToken: z.string().min(1),
+  // Optional execution context for exact replay of the quoted route (preferred)
+  executionContext: z.object({
+    sourceChainId: z.union([z.number().int().positive(), z.string().min(1)]),
+    sourceChainType: chainTypeEnum.optional(),
+    sourceTokenAddress: z.string().min(1),
+    destinationTokenAddress: z.string().min(1),
+    sourceAmountRaw: z.string().min(1),
+    slippage: z.number().min(0.1).max(50),
+  }).optional(),
 });
 export type CreateSessionRequest = z.infer<typeof createSessionRequestSchema>;
 
@@ -192,10 +243,18 @@ export const statusQuerySchema = z.object({
 
 // ---- Update step status ----
 
+export const clientUpdatableStepStatusEnum = z.enum([
+  "submitted",
+  "failed",
+]);
+
 export const updateStepRequestSchema = z.object({
   sessionId: z.string().min(1),
+  provider: providerEnum,
+  routeId: z.string().min(1),
   stepIndex: z.number().int().min(0),
-  status: stepStatusEnum,
+  status: clientUpdatableStepStatusEnum,
   txHashOrSig: z.string().optional(),
+  sessionAuth: sessionAuthProofSchema,
 });
 export type UpdateStepRequest = z.infer<typeof updateStepRequestSchema>;

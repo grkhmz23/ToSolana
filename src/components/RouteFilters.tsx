@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import type { NormalizedRoute } from "@/server/schema";
 
 export type SortOption = "output" | "speed" | "fees";
-export type ProviderFilter = "all" | "lifi" | "rango";
+export type ProviderFilter = "all" | string;
 
 interface RouteFiltersProps {
   routes: NormalizedRoute[];
@@ -13,7 +13,7 @@ interface RouteFiltersProps {
 
 interface FilterState {
   sortBy: SortOption;
-  providerFilter: ProviderFilter;
+  providerFilter: ProviderFilter[];
   maxDuration: number | null; // in seconds
 }
 
@@ -21,7 +21,7 @@ export function RouteFilters({ routes, onFilterChange }: RouteFiltersProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [filters, setFilters] = useState<FilterState>({
     sortBy: "output",
-    providerFilter: "all",
+    providerFilter: ["all"],
     maxDuration: null,
   });
 
@@ -30,8 +30,9 @@ export function RouteFilters({ routes, onFilterChange }: RouteFiltersProps) {
     let result = [...routes];
 
     // Filter by provider
-    if (filters.providerFilter !== "all") {
-      result = result.filter((r) => r.provider === filters.providerFilter);
+    const providerFilters = filters.providerFilter.includes("all") ? [] : filters.providerFilter;
+    if (providerFilters.length > 0) {
+      result = result.filter((r) => providerFilters.includes(r.provider));
     }
 
     // Filter by max duration
@@ -66,7 +67,7 @@ export function RouteFilters({ routes, onFilterChange }: RouteFiltersProps) {
   }, [routes, filters]);
 
   // Notify parent when filtered routes change
-  useMemo(() => {
+  useEffect(() => {
     onFilterChange(filteredAndSortedRoutes);
   }, [filteredAndSortedRoutes, onFilterChange]);
 
@@ -74,8 +75,17 @@ export function RouteFilters({ routes, onFilterChange }: RouteFiltersProps) {
     setFilters((f) => ({ ...f, sortBy }));
   }, []);
 
-  const handleProviderChange = useCallback((providerFilter: ProviderFilter) => {
-    setFilters((f) => ({ ...f, providerFilter }));
+  const handleProviderToggle = useCallback((provider: ProviderFilter) => {
+    setFilters((f) => {
+      if (provider === "all") {
+        return { ...f, providerFilter: ["all"] };
+      }
+      const current = f.providerFilter.includes("all") ? [] : f.providerFilter;
+      const next = current.includes(provider)
+        ? current.filter((p) => p !== provider)
+        : [...current, provider];
+      return { ...f, providerFilter: next.length === 0 ? ["all"] : next };
+    });
   }, []);
 
   const handleDurationChange = useCallback((maxDuration: number | null) => {
@@ -84,9 +94,14 @@ export function RouteFilters({ routes, onFilterChange }: RouteFiltersProps) {
 
   const activeFiltersCount = [
     filters.sortBy !== "output",
-    filters.providerFilter !== "all",
+    !filters.providerFilter.includes("all"),
     filters.maxDuration !== null,
   ].filter(Boolean).length;
+
+  const providerOptions = useMemo(
+    () => Array.from(new Set(routes.map((r) => r.provider))).sort(),
+    [routes],
+  );
 
   return (
     <div className="relative">
@@ -161,22 +176,20 @@ export function RouteFilters({ routes, onFilterChange }: RouteFiltersProps) {
               <h4 className="mb-2 text-sm font-semibold text-[var(--foreground)]">
                 Provider
               </h4>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <ProviderButton
                   label="All"
-                  selected={filters.providerFilter === "all"}
-                  onClick={() => handleProviderChange("all")}
+                  selected={filters.providerFilter.includes("all")}
+                  onClick={() => handleProviderToggle("all")}
                 />
-                <ProviderButton
-                  label="LI.FI"
-                  selected={filters.providerFilter === "lifi"}
-                  onClick={() => handleProviderChange("lifi")}
-                />
-                <ProviderButton
-                  label="Rango"
-                  selected={filters.providerFilter === "rango"}
-                  onClick={() => handleProviderChange("rango")}
-                />
+                {providerOptions.map((p) => (
+                  <ProviderButton
+                    key={p}
+                    label={p.toUpperCase()}
+                    selected={filters.providerFilter.includes(p)}
+                    onClick={() => handleProviderToggle(p)}
+                  />
+                ))}
               </div>
             </div>
 
@@ -231,7 +244,7 @@ export function RouteFilters({ routes, onFilterChange }: RouteFiltersProps) {
                 onClick={() => {
                   setFilters({
                     sortBy: "output",
-                    providerFilter: "all",
+                    providerFilter: ["all"],
                     maxDuration: null,
                   });
                 }}
