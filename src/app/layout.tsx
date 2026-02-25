@@ -1,9 +1,17 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Providers } from "./providers";
 import { ToastContainer } from "@/components/Toast";
 import "./globals.css";
 
 export const dynamic = 'force-dynamic';
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: "#9945FF",
+};
 
 export const metadata: Metadata = {
   title: "ToSolana - Bridge Assets to Solana",
@@ -53,17 +61,10 @@ export const metadata: Metadata = {
     ],
   },
   manifest: "/manifest.json",
-  themeColor: "#9945FF",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "ToSolana",
-  },
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1,
-    userScalable: false,
   },
 };
 
