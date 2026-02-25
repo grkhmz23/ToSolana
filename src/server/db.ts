@@ -1,18 +1,36 @@
 // Prisma client singleton for server-side usage
 import { PrismaClient } from "@prisma/client";
 
+// Prevent multiple instances during development
 const globalForPrisma = global as unknown as { prisma: PrismaClient };
 
-export const prisma = globalForPrisma.prisma ?? new PrismaClient();
+// Check if we're in build/static generation mode
+const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build' || 
+                   process.env.NODE_ENV === 'production' && typeof window === 'undefined' && !process.env.DATABASE_URL;
+
+// Create Prisma client only when not in build time
+export const prisma = globalForPrisma.prisma ?? (
+  isBuildTime 
+    ? null as unknown as PrismaClient  // Return null during build, will be initialized at runtime
+    : new PrismaClient()
+);
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+
+// Helper to ensure prisma is initialized
+function getPrisma(): PrismaClient {
+  if (!prisma) {
+    throw new Error('Database not initialized');
+  }
+  return prisma;
+}
 
 // Project Token helpers
 export async function getProjectTokenBySource(
   sourceChainId: number,
   sourceTokenAddress: string
 ) {
-  return prisma.projectToken.findUnique({
+  return getPrisma().projectToken.findUnique({
     where: {
       sourceChainId_sourceTokenAddress: {
         sourceChainId,
@@ -23,14 +41,14 @@ export async function getProjectTokenBySource(
 }
 
 export async function getActiveProjectTokens() {
-  return prisma.projectToken.findMany({
+  return getPrisma().projectToken.findMany({
     where: { status: "ACTIVE" },
     orderBy: { symbol: "asc" },
   });
 }
 
 export async function getProjectTokensForAdmin() {
-  return prisma.projectToken.findMany({
+  return getPrisma().projectToken.findMany({
     orderBy: { updatedAt: "desc" },
     include: {
       _count: {
@@ -50,7 +68,7 @@ export async function createProjectToken(data: {
   decimals?: number;
   notes?: string;
 }) {
-  return prisma.projectToken.create({
+  return getPrisma().projectToken.create({
     data: {
       sourceChainId: data.sourceChainId,
       sourceTokenAddress: data.sourceTokenAddress.toLowerCase(),
@@ -79,7 +97,7 @@ export async function updateProjectToken(
     verifiedAt: Date | null;
   }>
 ) {
-  return prisma.projectToken.update({
+  return getPrisma().projectToken.update({
     where: { id },
     data,
   });
@@ -90,7 +108,7 @@ export async function createVerificationLog(
   ok: boolean,
   details: Record<string, unknown>
 ) {
-  return prisma.tokenVerificationLog.create({
+  return getPrisma().tokenVerificationLog.create({
     data: {
       projectTokenId,
       ok,

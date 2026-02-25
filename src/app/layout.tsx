@@ -3,6 +3,8 @@ import { Providers } from "./providers";
 import { ToastContainer } from "@/components/Toast";
 import "./globals.css";
 
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: "ToSolana - Bridge Assets to Solana",
   description: "Move assets from EVM chains to Solana. Non-custodial cross-chain bridge.",
