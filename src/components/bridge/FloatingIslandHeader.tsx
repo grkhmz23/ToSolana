@@ -30,13 +30,13 @@ export function FloatingIslandHeader({
     >
       <div className="bg-[#12121a]/80 backdrop-blur-2xl border border-white/10 rounded-2xl px-5 py-3 shadow-2xl shadow-indigo-500/10 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <Link href="/" className="flex items-center gap-3">
-          <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center p-0.5">
+          <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden">
             <Image
-              src="/tosolana-logo.svg"
+              src="/icon-192x192.png"
               alt="ToSolana"
-              width={60}
-              height={60}
-              className="w-[60px] h-[60px] object-contain"
+              width={48}
+              height={48}
+              className="w-full h-full object-cover"
               priority
             />
           </div>

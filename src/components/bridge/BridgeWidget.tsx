@@ -106,11 +106,6 @@ export function BridgeWidget({ onConnectWallets }: BridgeWidgetProps) {
       return;
     }
 
-    if (!isFullyConnected) {
-      // Don't fetch if wallets aren't connected
-      return;
-    }
-
     setIsCalculating(true);
     setQuoteError(null);
     setRoutes([]);
@@ -140,13 +135,24 @@ export function BridgeWidget({ onConnectWallets }: BridgeWidgetProps) {
         throw new Error(`Token decimals unavailable for ${sourceToken.symbol}`);
       }
 
+      // Use placeholder addresses if wallets not connected
+      const placeholderSourceAddress = sourceChain.type === 'evm' 
+        ? '0x0000000000000000000000000000000000000000'
+        : sourceChain.type === 'bitcoin'
+        ? 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh'
+        : sourceChain.type === 'cosmos'
+        ? 'cosmos1vqn75qrv7cp74d63xa4492wn3uzzl6g9k'
+        : sourceChain.type === 'ton'
+        ? 'EQD...'
+        : '0x0000000000000000000000000000000000000000';
+      
       const requestBody = {
         sourceChainId: chainId,
         sourceTokenAddress,
         sourceAmount: parseTokenAmount(amount, sourceTokenDecimals),
         destinationTokenAddress,
-        sourceAddress: sourceWallet.address || '',
-        solanaAddress: destWallet.address || '',
+        sourceAddress: sourceWallet.address || placeholderSourceAddress,
+        solanaAddress: destWallet.address || 'H3TgN7c7H9o6D6i3npydq8gqVPSYwJm1g7y1uK8bS5mP',
         slippage: parseFloat(slippage),
         sourceChainType: sourceChain.type,
       };
@@ -182,18 +188,18 @@ export function BridgeWidget({ onConnectWallets }: BridgeWidgetProps) {
     } finally {
       setIsCalculating(false);
     }
-  }, [amount, sourceChain, sourceToken, destToken, sourceWallet.address, destWallet.address, slippage, isFullyConnected]);
+  }, [amount, sourceChain, sourceToken, destToken, sourceWallet.address, destWallet.address, slippage]);
 
   // Debounced quote fetching
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (isFullyConnected && amount && parseFloat(amount) > 0) {
+      if (amount && parseFloat(amount) > 0) {
         fetchQuotes();
       }
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [amount, sourceChain, sourceToken, destToken, slippage, isFullyConnected, fetchQuotes]);
+  }, [amount, sourceChain, sourceToken, destToken, slippage, fetchQuotes]);
 
   // Calculate output amount and price impact
   const bestRoute = selectedRoute;
@@ -434,8 +440,10 @@ export function BridgeWidget({ onConnectWallets }: BridgeWidgetProps) {
                   <div className={`text-4xl md:text-5xl font-bold truncate ${isHighImpact ? 'text-amber-400' : 'text-slate-300'}`}>
                     {isCalculating ? (
                       <span className="animate-pulse">...</span>
-                    ) : (
+                    ) : bestRoute ? (
                       <AnimatedNumber value={outputAmount} />
+                    ) : (
+                      <span className="text-xl text-slate-500">-</span>
                     )}
                   </div>
                   <div className="text-sm font-medium mt-1 pl-1 flex items-center gap-2">

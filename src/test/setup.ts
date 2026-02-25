@@ -8,8 +8,13 @@ process.env.RANGO_API_KEY = 'test-rango-key';
 process.env.LIFI_API_KEY = 'test-lifi-key';
 process.env.LIFI_INTEGRATOR = 'tosolana-test';
 
-// Mock fetch globally
-global.fetch = vi.fn();
+// Mock fetch globally - returns empty routes by default for provider tests
+global.fetch = vi.fn().mockResolvedValue({
+  ok: true,
+  status: 200,
+  json: async () => ({ routes: [] }),
+  text: async () => '{"routes":[]}',
+} as unknown as Response);
 
 // Mock console methods to reduce noise in tests
 vi.spyOn(console, 'log').mockImplementation(() => {});

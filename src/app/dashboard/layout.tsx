@@ -28,13 +28,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       <header className="fixed top-6 left-1/2 -translate-x-1/2 z-40 w-[95%] max-w-5xl">
         <div className="bg-[#12121a]/80 backdrop-blur-2xl border border-white/10 rounded-full px-6 py-2 shadow-2xl shadow-indigo-500/10 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-3">
-          <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center p-0.5">
+          <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden">
             <Image
-              src="/tosolana-logo.svg"
+              src="/icon-192x192.png"
               alt="ToSolana"
-              width={60}
-              height={60}
-              className="w-[60px] h-[60px] object-contain"
+              width={48}
+              height={48}
+              className="w-full h-full object-cover"
               priority
             />
           </div>

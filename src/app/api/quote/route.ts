@@ -92,29 +92,32 @@ export async function POST(request: Request) {
       );
     }
 
-    // Validate source address based on chain type
-    if (chainType === "evm") {
+    // Validate source address based on chain type (allow placeholder addresses for quotes)
+    const isPlaceholderEvm = intent.sourceAddress === '0x0000000000000000000000000000000000000000';
+    const isPlaceholderSolana = intent.solanaAddress === 'H3TgN7c7H9o6D6i3npydq8gqVPSYwJm1g7y1uK8bS5mP';
+    
+    if (chainType === "evm" && !isPlaceholderEvm) {
       if (!isValidEvmAddress(intent.sourceAddress)) {
         return NextResponse.json(
           { error: "Invalid source address" },
           { status: 400 },
         );
       }
-    } else if (chainType === "bitcoin") {
+    } else if (chainType === "bitcoin" && !intent.sourceAddress?.includes('...')) {
       if (!validateNonEvmAddress(intent.sourceAddress, "bitcoin")) {
         return NextResponse.json(
           { error: "Invalid Bitcoin address" },
           { status: 400 },
         );
       }
-    } else if (chainType === "cosmos") {
+    } else if (chainType === "cosmos" && !intent.sourceAddress?.includes('...')) {
       if (!validateNonEvmAddress(intent.sourceAddress, "cosmos")) {
         return NextResponse.json(
           { error: "Invalid Cosmos address" },
           { status: 400 },
         );
       }
-    } else if (chainType === "ton") {
+    } else if (chainType === "ton" && !intent.sourceAddress?.includes('...')) {
       if (!validateNonEvmAddress(intent.sourceAddress, "ton")) {
         return NextResponse.json(
           { error: "Invalid TON address" },
@@ -123,8 +126,8 @@ export async function POST(request: Request) {
       }
     }
 
-    // Validate Solana address
-    if (!isValidSolanaAddress(intent.solanaAddress)) {
+    // Validate Solana address (allow placeholder)
+    if (!isPlaceholderSolana && !isValidSolanaAddress(intent.solanaAddress)) {
       return NextResponse.json(
         { error: "Invalid Solana address" },
         { status: 400 },

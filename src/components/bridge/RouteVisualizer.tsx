@@ -1,5 +1,6 @@
 'use client';
 
+import Image from "next/image";
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, Zap, AlertTriangle } from 'lucide-react';
 import type { Route, Chain } from '@/types/bridge';
@@ -55,11 +56,25 @@ export function RouteVisualizer({
               {bestRoute.provider}
             </div>
 
-            <div className="w-8 h-8 rounded-full bg-[#12121a] border border-white/10 flex items-center justify-center z-10 text-lg">
-              {sourceChain.icon}
+            <div className="w-8 h-8 rounded-full bg-[#12121a] border border-white/10 flex items-center justify-center z-10 overflow-hidden">
+              <Image
+                src={sourceChain.icon}
+                alt={sourceChain.name}
+                width={32}
+                height={32}
+                className="w-6 h-6 object-contain"
+                unoptimized
+              />
             </div>
-            <div className="w-8 h-8 rounded-full bg-[#12121a] border border-white/10 flex items-center justify-center z-10 text-lg shadow-[0_0_15px_rgba(99,102,241,0.5)]">
-              {destChain.icon}
+            <div className="w-8 h-8 rounded-full bg-[#12121a] border border-white/10 flex items-center justify-center z-10 overflow-hidden shadow-[0_0_15px_rgba(99,102,241,0.5)]">
+              <Image
+                src={destChain.icon}
+                alt={destChain.name}
+                width={32}
+                height={32}
+                className="w-6 h-6 object-contain"
+                unoptimized
+              />
             </div>
           </div>
 

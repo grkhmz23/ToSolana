@@ -12,6 +12,8 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:providers": "vitest run src/test/providers-integration.test.ts --reporter=verbose",
+    "test:providers:cli": "tsx scripts/test-providers.ts",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",

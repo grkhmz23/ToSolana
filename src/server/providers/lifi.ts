@@ -99,7 +99,6 @@ export class LiFiProvider implements BridgeProvider {
           ? NATIVE_SOL_ADDRESS
           : intent.destinationTokenAddress,
         fromAmount: intent.sourceAmount,
-        fromAddress: intent.sourceAddress,
         toAddress: intent.solanaAddress,
         options: {
           integrator: getIntegrator(),
